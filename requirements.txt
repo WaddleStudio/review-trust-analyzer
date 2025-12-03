@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+sqlmodel
+psycopg2-binary
+scikit-learn
+pandas
+numpy
+pytest
+requests
+httpx
+python-multipart
+pydantic-settings
+aiofiles

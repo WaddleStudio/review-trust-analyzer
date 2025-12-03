@@ -22,22 +22,10 @@ def extract_text_features(text: str) -> dict:
     text_lower = text.lower()
     has_promo = any(keyword in text_lower for keyword in PROMO_KEYWORDS)
     
-    # Simple Sentiment Score (Mock logic: longer text + high rating usually positive, but here we only have text)
-    # Let's just use a very naive approach: 
-    # Positive words: good, great, excellent, amazing, love, best
-    # Negative words: bad, terrible, awful, worst, hate, poor
-    positive_words = ["good", "great", "excellent", "amazing", "love", "best", "好", "棒", "讚"]
-    negative_words = ["bad", "terrible", "awful", "worst", "hate", "poor", "差", "爛"]
-    
-    pos_count = sum(1 for w in positive_words if w in text_lower)
-    neg_count = sum(1 for w in negative_words if w in text_lower)
-    
-    # Normalize to -1 to 1 roughly
-    total = pos_count + neg_count
-    if total > 0:
-        sentiment_score = (pos_count - neg_count) / total
-    else:
-        sentiment_score = 0.0
+    # Sentiment Score using TextBlob
+    from textblob import TextBlob
+    blob = TextBlob(text)
+    sentiment_score = blob.sentiment.polarity
         
     return {
         "text_length": text_length,

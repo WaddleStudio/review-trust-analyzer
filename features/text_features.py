@@ -1,6 +1,14 @@
 import re
 
-PROMO_KEYWORDS = ["gift", "discount", "promo", "free", "offer", "coupon", "vouchar", "送禮", "折扣", "優惠", "免費"]
+# Expanded keywords based on NLP analysis (WordNet) + Manual curation
+PROMO_KEYWORDS = [
+    # English
+    "gift", "discount", "promo", "free", "offer", "coupon", "voucher", "deal", "sale", 
+    "rebate", "gratis", "complimentary", "giveaway", "bonus", "bargain", "special", 
+    "cut-rate", "markdown", "clearance",
+    # Chinese
+    "送禮", "折扣", "優惠", "免費", "促銷", "特價", "好康", "抽獎", "贈送", "禮物", "折抵"
+]
 
 def extract_text_features(text: str) -> dict:
     if not text:

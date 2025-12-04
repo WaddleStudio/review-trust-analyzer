@@ -23,6 +23,8 @@ class ReviewResponse(BaseModel):
     trust_score: float
     is_suspicious: bool
     reasons: List[str]
+    sentiment_score: float
+    text: Optional[str] = None
 
 @router.post("/reviews/score", response_model=ReviewResponse)
 def score_review(review: ReviewCreate, db: Session = Depends(get_session)):
@@ -56,7 +58,7 @@ def score_review(review: ReviewCreate, db: Session = Depends(get_session)):
     db.add(db_features)
     
     # 3. Inference
-    trust_score, is_suspicious, reasons = model_service.predict(all_features)
+    trust_score, is_suspicious, reasons = model_service.predict(all_features, text=review.text)
     
     # 4. Save Score
     db_score = ReviewScore(
@@ -72,5 +74,49 @@ def score_review(review: ReviewCreate, db: Session = Depends(get_session)):
     return ReviewResponse(
         trust_score=trust_score,
         is_suspicious=is_suspicious,
-        reasons=reasons
+        reasons=reasons,
+        sentiment_score=all_features["sentiment_score"]
     )
+
+from fastapi import File, UploadFile
+import csv
+import io
+
+@router.post("/reviews/batch", response_model=List[ReviewResponse])
+async def batch_score_reviews(file: UploadFile = File(...), db: Session = Depends(get_session)):
+    content = await file.read()
+    decoded_content = content.decode('utf-8')
+    csv_reader = csv.DictReader(io.StringIO(decoded_content))
+    
+    results = []
+    results = []
+    # Use the global model_service instance imported at the top
+    
+    for row in csv_reader:
+        # Parse row
+        try:
+            text = row.get("text", "")
+            rating = int(row.get("rating", 5))
+            platform = row.get("platform", "google")
+            user_id = row.get("user_id", "anonymous")
+        except ValueError:
+            continue # Skip bad rows
+            
+        # 1. Extract Features
+        text_features = extract_text_features(text)
+        user_features = get_user_stats(user_id, db)
+        all_features = {**text_features, **user_features}
+        
+        # 2. Inference
+        trust_score, is_suspicious, reasons = model_service.predict(all_features, text=text)
+        
+        # 3. Append to results (We don't save to DB for batch to avoid cluttering, or we could)
+        results.append(ReviewResponse(
+            trust_score=trust_score,
+            is_suspicious=is_suspicious,
+            reasons=reasons,
+            sentiment_score=all_features["sentiment_score"],
+            text=text
+        ))
+        
+    return results

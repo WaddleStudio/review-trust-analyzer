@@ -17,20 +17,42 @@ A system to analyze review credibility and detect potential fake reviews using a
 - **ML**: Scikit-learn (Logistic Regression)
 - **Containerization**: Docker + Docker Compose
 
+## 🤖 AI-Assisted Development with Superpowers
+
+This project integrates the [Superpowers](https://github.com/obra/superpowers) agentic skills framework to enhance development workflow automation. Skills provide structured commands for common tasks.
+
+### Available Skills
+- `/train-model` - Train the ML model
+- `/dev-setup` - Complete development environment setup
+- `/run-tests` - Run the test suite with coverage
+- `/batch-analyze` - Process CSV files with multiple reviews
+- `/evaluate-model` - Evaluate model performance metrics
+- `/docker-dev` - Start Docker development environment
+
+📖 **[詳細文檔 / Detailed Documentation (繁體中文)](.claude/README.md)**
+
 ## Setup & Run
 
 ### 1. Prerequisites
 - Docker & Docker Compose installed (for production)
 - Python 3.10+ (for local development)
 
-### 2. Start Services with Docker
+### 2. Quick Start (AI-Assisted)
+Using the Superpowers `/dev-setup` skill workflow:
+```bash
+pip install -r requirements.txt   # Install dependencies
+python ml/train.py                 # Train ML model
+python -m uvicorn app.main:app --reload  # Start server
+```
+
+### 3. Start Services with Docker
 ```bash
 docker-compose up --build
 ```
 The application will be available at `http://localhost:8000`.
 API Documentation (Swagger): `http://localhost:8000/docs`.
 
-### 3. Local Development (Without Docker)
+### 4. Local Development (Without Docker)
 If you want to run locally:
 
 1. Install dependencies:

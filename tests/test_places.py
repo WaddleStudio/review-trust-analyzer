@@ -107,15 +107,19 @@ def _get_test_session():
         yield session
 
 
-app.dependency_overrides[get_session] = _get_test_session
+_original_override = app.dependency_overrides.get(get_session)
+
 _client = TestClient(app)
 
 
 @pytest.fixture(autouse=True)
-def setup_db():
+def setup_places_db():
+    app.dependency_overrides[get_session] = _get_test_session
     SQLModel.metadata.create_all(_engine)
     yield
     SQLModel.metadata.drop_all(_engine)
+    if _original_override:
+        app.dependency_overrides[get_session] = _original_override
 
 
 @patch("app.api.endpoints.SerpAPIService")
@@ -162,3 +166,9 @@ def test_places_analyze_endpoint(mock_cls):
     assert "reviews" in data
     assert data["summary"]["total_analyzed"] == 2
     assert data["place"]["name"] == "Test Place"
+
+
+def test_places_page_loads():
+    resp = _client.get("/places")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]

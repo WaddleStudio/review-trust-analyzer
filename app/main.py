@@ -20,3 +20,7 @@ app.include_router(endpoints.router)
 @app.get("/")
 async def read_root():
     return FileResponse('app/static/index.html')
+
+@app.get("/places")
+async def read_places():
+    return FileResponse('app/static/places.html')

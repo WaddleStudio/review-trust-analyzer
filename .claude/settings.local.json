@@ -6,7 +6,15 @@
       "Skill(run-tests)",
       "Skill(run-tests:*)",
       "Bash(git commit:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(python ml/evaluate.py:*)",
+      "Bash(python -m ml.evaluate:*)",
+      "Bash(python:*)",
+      "Bash(uv --version:*)",
+      "Bash(powershell -ExecutionPolicy ByPass -c \"irm https://astral.sh/uv/install.ps1 | iex\")",
+      "Bash(export PATH=\"$PATH:/c/Users/1ren/.local/bin\")",
+      "Bash(uv run python:*)",
+      "Bash(git push origin feature/nlp-sentiment)"
     ]
   }
 }

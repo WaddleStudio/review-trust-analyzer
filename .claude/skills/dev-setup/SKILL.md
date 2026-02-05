@@ -6,74 +6,76 @@ description: Use when setting up local development environment for the first tim
 # Development Environment Setup
 
 ## Overview
-Complete setup workflow for the Review Trust Analyzer development environment. Installs dependencies, trains the ML model, and starts the FastAPI development server.
+Complete setup workflow for the Review Trust Analyzer development environment using **uv** package manager. Installs dependencies, trains the ML model, and starts the FastAPI development server.
 
 ## When to Use
 - Fresh clone of the repository
 - New developer onboarding
 - After `rm -rf .venv` or virtual environment corruption
 - Switching between development machines
-- After major dependency updates in requirements.txt
+- After major dependency updates in pyproject.toml
+
+## Prerequisites
+
+**Install uv (if not installed):**
+```bash
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Mac/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
 
 ## Core Workflow
 
 ### 1. Install Python Dependencies
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
-**What gets installed:**
-- FastAPI + Uvicorn (web framework & server)
-- SQLModel + databases (ORM & PostgreSQL/SQLite)
-- Scikit-learn (ML model)
-- TextBlob + sentence-transformers (NLP)
-- Pytest + testing utilities
+**What happens:**
+- Creates `.venv/` automatically (no manual venv activation needed)
+- Installs all dependencies from `pyproject.toml`
+- Creates `uv.lock` for reproducible builds
 
 ### 2. Train Initial Model
 ```bash
-python ml/train.py
+uv run python ml/train.py
 ```
 
 **Creates:** `ml/model.pkl` (Logistic Regression classifier)
 
 ### 3. Start Development Server
 ```bash
-python -m uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload
 ```
 
 **Access points:**
 - Frontend UI: http://localhost:8000
 - API Docs: http://localhost:8000/docs
-- Health Check: http://localhost:8000/reviews/score (POST endpoint)
+- Place Analysis: http://localhost:8000/places
 
 ## Complete Setup Script
 
 ```bash
 # Ensure you're in project root
-cd d:\Projects\review-trust-analyzer
+cd D:\Projects\review-trust-analyzer
 
-# Activate virtual environment (recommended)
-python -m venv .venv
-# Windows:
-.venv\Scripts\activate
-# Unix/Mac:
-# source .venv/bin/activate
+# Install dependencies (auto-creates .venv)
+uv sync
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Download NLP models (happens automatically on first TextBlob/transformers use)
-python -c "import nltk; nltk.download('punkt'); nltk.download('brown')"
-python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')"
+# Download NLP models
+uv run python -c "import nltk; nltk.download('punkt'); nltk.download('brown')"
+uv run python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')"
 
 # Train ML model
-python ml/train.py
+uv run python ml/train.py
 
 # Verify installation
-python -m pytest tests/ -v
+uv run pytest
 
 # Start server
-python -m uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload
 ```
 
 ## Verification Checklist
@@ -83,69 +85,62 @@ python -m uvicorn app.main:app --reload
 - [ ] Server starts without errors
 - [ ] http://localhost:8000 shows the UI
 - [ ] http://localhost:8000/docs shows API documentation
-- [ ] Tests pass: `python -m pytest`
-- [ ] Database created: `dev.db` or PostgreSQL connection successful
+- [ ] Tests pass: `uv run pytest`
 
 ## Common Setup Issues
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
-| pip install fails | Python version < 3.10 | Upgrade to Python 3.10+ |
-| Import error: textblob | Missing NLTK data | Run `python -m textblob.download_corpora` |
-| Transformers download hangs | Network/firewall | Use `HF_HOME` environment variable for custom cache |
-| Port 8000 in use | Another service running | Use `--port 8001` or kill existing process |
-| Database connection error | PostgreSQL not running | Use SQLite: `DATABASE_URL=sqlite:///./dev.db` |
+| uv not found | Not installed | Install uv (see Prerequisites) |
+| Import error: textblob | Missing NLTK data | `uv run python -m textblob.download_corpora` |
+| Transformers download hangs | Network/firewall | Set `HF_HOME` env var |
+| Port 8000 in use | Another service | Use `--port 8001` |
 
 ## Environment Configuration
 
 **Required `.env` file:**
 ```bash
 DATABASE_URL=sqlite:///./dev.db
-# Or for PostgreSQL:
-# DATABASE_URL=postgresql://user:password@localhost/review_trust_db
-```
-
-**Optional settings:**
-```bash
-MODEL_PATH=ml/model.pkl
-LOG_LEVEL=INFO
-CORS_ORIGINS=["http://localhost:3000"]
+SERPAPI_KEY=your_serpapi_key_here  # For Place Analysis
 ```
 
 ## Docker Alternative
 
-For containerized setup instead:
+For containerized setup:
 ```bash
 docker-compose up --build
-# Access at http://localhost:8000
-# PostgreSQL automatically configured
 ```
 
 ## Quick Reference
 
-**Minimum setup (3 commands):**
 ```bash
-pip install -r requirements.txt
-python ml/train.py
-python -m uvicorn app.main:app --reload
+# Minimum setup (3 commands)
+uv sync
+uv run python ml/train.py
+uv run uvicorn app.main:app --reload
+
+# Full setup with testing
+uv sync
+uv run python ml/train.py
+uv run pytest
+uv run python ml/evaluate.py
+uv run uvicorn app.main:app --reload
+
+# Add new package
+uv add package-name
+
+# Update all packages
+uv sync --upgrade
 ```
 
-**Full setup with testing:**
-```bash
-pip install -r requirements.txt
-python ml/train.py
-python -m pytest
-python ml/evaluate.py
-python -m uvicorn app.main:app --reload
-```
+## uv vs pip 對照
 
-## Real-World Impact
+| 動作 | 舊 (pip) | 新 (uv) |
+|------|----------|---------|
+| 安裝套件 | `pip install -r requirements.txt` | `uv sync` |
+| 執行 Python | `python script.py` | `uv run python script.py` |
+| 執行 pytest | `pytest` | `uv run pytest` |
+| 新增套件 | `pip install X` + 手動編輯 | `uv add X` |
+| 啟動 server | `uvicorn app.main:app` | `uv run uvicorn app.main:app` |
 
-Proper setup ensures:
-- Consistent development environment across team members
-- All NLP models pre-downloaded (no production surprises)
-- Database schema initialized correctly
-- ML model available for inference
-- Hot-reload enabled for rapid development
-
-**Setup time:** ~5-10 minutes depending on internet speed (transformers model is ~420MB).
+**Note:** 使用 `uv run` 不需要手動 activate 虛擬環境。

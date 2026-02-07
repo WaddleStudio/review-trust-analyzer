@@ -59,39 +59,57 @@ class SerpAPIService:
         return results
 
     def fetch_reviews(self, data_id: str, num: int = 20) -> tuple[dict, list[dict]]:
-        """Fetch reviews for a place by data_id."""
+        """Fetch reviews for a place by data_id, paginating as needed."""
         params = {
             "engine": "google_maps_reviews",
             "data_id": data_id,
             "sort_by": "newestFirst",
-            "num": num,
             "hl": "zh-TW",
             "api_key": self.api_key,
         }
-        resp = requests.get(SERPAPI_BASE, params=params, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
 
-        pi = data.get("place_info", {})
-        place_info = {
-            "name": pi.get("title", ""),
-            "address": pi.get("address", ""),
-            "rating": pi.get("rating"),
-            "total_reviews": pi.get("reviews", 0),
-        }
-
+        place_info = {}
         reviews = []
-        for r in data.get("reviews", []):
-            user = r.get("user", {})
-            extracted = r.get("extracted_snippet", {})
-            text = extracted.get("original") or r.get("snippet", "")
-            reviews.append(
-                {
-                    "text": text,
-                    "rating": r.get("rating"),
-                    "author": user.get("name", "Anonymous"),
-                    "date": r.get("date", ""),
-                    "iso_date": r.get("iso_date", ""),
+
+        while len(reviews) < num:
+            resp = requests.get(SERPAPI_BASE, params=params, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+
+            if not place_info:
+                pi = data.get("place_info", {})
+                place_info = {
+                    "name": pi.get("title", ""),
+                    "address": pi.get("address", ""),
+                    "rating": pi.get("rating"),
+                    "total_reviews": pi.get("reviews", 0),
                 }
-            )
-        return place_info, reviews
+
+            page_reviews = data.get("reviews", [])
+            if not page_reviews:
+                break
+
+            for r in page_reviews:
+                user = r.get("user", {})
+                extracted = r.get("extracted_snippet", {})
+                text = extracted.get("original") or r.get("snippet", "")
+                reviews.append(
+                    {
+                        "text": text,
+                        "rating": r.get("rating"),
+                        "author": user.get("name", "Anonymous"),
+                        "date": r.get("date", ""),
+                        "iso_date": r.get("iso_date", ""),
+                    }
+                )
+
+            # Check for next page
+            pagination = data.get("serpapi_pagination", {})
+            next_token = pagination.get("next_page_token")
+            if not next_token or len(reviews) >= num:
+                break
+
+            params["next_page_token"] = next_token
+            params["num"] = num - len(reviews)
+
+        return place_info, reviews[:num]

@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Place Analysis - Trust Analyzer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* Place Analysis specific styles */
+        body {
+            align-items: flex-start;
+            padding-top: 1.5rem;
+            padding-bottom: 2rem;
+        }
+
+        @media (min-width: 768px) {
+            body { padding-top: 2rem; }
+        }
+
+        .container { max-width: 960px; }
+        main { display: block; }
+
+        /* Search Row */
+        .search-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        @media (min-width: 480px) {
+            .search-row {
+                flex-direction: row;
+            }
+            .search-row input { flex: 1; }
+            .search-row button {
+                width: auto;
+                min-width: 120px;
+                padding: 0.75rem 1.5rem;
+            }
+        }
+
+        /* Advanced Settings */
+        .advanced-toggle {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            cursor: pointer;
+            padding: 0.5rem 0;
+            width: auto;
+            text-align: left;
+            min-height: auto;
+        }
+        .advanced-toggle:hover {
+            color: var(--primary);
+            background: none;
+        }
+        .advanced-panel {
+            display: none;
+            margin-top: 0.5rem;
+        }
+        .advanced-panel.show { display: block; }
+
+        /* Candidate List */
+        .candidates { margin-top: 1rem; }
+        .candidate-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: rgba(15,23,42,0.4);
+            border-radius: 0.75rem;
+            margin-bottom: 0.5rem;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        @media (min-width: 480px) {
+            .candidate-item {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+
+        .candidate-item:hover {
+            border-color: var(--primary);
+            background: rgba(99,102,241,0.1);
+        }
+        .candidate-name { font-weight: 600; }
+        .candidate-meta { color: var(--text-muted); font-size: 0.85rem; }
+        .candidate-rating { color: var(--warning); }
+
+        /* Summary Grid */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        @media (min-width: 480px) {
+            .summary-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .summary-stat {
+            text-align: center;
+            padding: 1.25rem;
+            background: rgba(15,23,42,0.3);
+            border-radius: 0.75rem;
+            border: 1px solid var(--border);
+        }
+        .summary-stat .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+        }
+
+        @media (min-width: 768px) {
+            .summary-stat .stat-value { font-size: 2rem; }
+        }
+
+        .summary-stat .stat-label {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 0.25rem;
+        }
+
+        /* Findings */
+        .findings { margin: 1rem 0; }
+        .finding-item {
+            padding: 0.75rem 1rem;
+            background: rgba(15,23,42,0.3);
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            border-left: 3px solid var(--primary);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* Details Toggle */
+        .details-toggle {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        .details-toggle:hover {
+            border-color: var(--primary);
+            color: var(--text-main);
+            background: none;
+        }
+
+        /* Review List */
+        .review-list { margin-top: 1rem; }
+        .review-card {
+            padding: 1rem;
+            background: rgba(15,23,42,0.3);
+            border-radius: 0.75rem;
+            margin-bottom: 0.75rem;
+            border-left: 4px solid var(--success);
+            transition: all 0.2s;
+        }
+
+        @media (min-width: 768px) {
+            .review-card { padding: 1.25rem; }
+        }
+
+        .review-card.suspicious { border-left-color: var(--danger); }
+        .review-card.moderate { border-left-color: var(--warning); }
+
+        .review-header {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        @media (min-width: 480px) {
+            .review-header {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+
+        .review-author { font-weight: 600; font-size: 0.9rem; }
+        .review-date { color: var(--text-muted); font-size: 0.8rem; }
+        .review-stars { color: var(--warning); font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .review-text {
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin-bottom: 0.75rem;
+            color: var(--text-main);
+            word-break: break-word;
+        }
+
+        .review-trust {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .trust-bar {
+            flex: 1;
+            height: 6px;
+            background: rgba(148,163,184,0.2);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .trust-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+        .trust-value {
+            font-weight: 600;
+            font-size: 0.85rem;
+            min-width: 3rem;
+            text-align: right;
+        }
+
+        .review-reasons { margin-top: 0.5rem; }
+        .review-reasons span {
+            display: inline-block;
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            background: rgba(239,68,68,0.15);
+            color: var(--danger);
+            border-radius: 0.25rem;
+            margin: 0.15rem 0.15rem 0 0;
+            line-height: 1.4;
+        }
+
+        /* Place Header */
+        .place-header {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        @media (min-width: 480px) {
+            .place-header {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+            }
+        }
+
+        .place-header h3 {
+            font-size: 1.15rem;
+            margin: 0;
+        }
+
+        @media (min-width: 768px) {
+            .place-header h3 { font-size: 1.3rem; }
+        }
+
+        .place-address { color: var(--text-muted); font-size: 0.85rem; }
+        .place-google-rating { color: var(--warning); font-weight: 600; }
+        .place-info-right { text-align: left; }
+
+        @media (min-width: 480px) {
+            .place-info-right { text-align: right; }
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15,23,42,0.8);
+            z-index: 999;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+        .loading-overlay.show { display: flex; }
+        .loading-spinner { text-align: center; color: var(--text-main); }
+        .loading-spinner .loader {
+            margin: 0 auto 1rem;
+            width: 40px;
+            height: 40px;
+            border-width: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="background-glow"></div>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h1>Trust Analyzer</h1>
+            </div>
+            <p class="subtitle">Detect fake reviews with AI-powered precision.</p>
+        </header>
+
+        <nav class="tabs" role="tablist" aria-label="Navigation">
+            <a href="/" class="tab-btn">Single Review</a>
+            <a href="/" class="tab-btn">Batch Upload</a>
+            <a href="/places" class="tab-btn active" aria-current="page">Place Analysis</a>
+        </nav>
+
+        <main>
+            <div class="card">
+                <h2>Analyze a Place</h2>
+                <div class="search-row">
+                    <label for="placeInput" class="sr-only">Place name or Google Maps URL</label>
+                    <input type="text" id="placeInput" placeholder="Paste a Google Maps URL or enter a place name...">
+                    <button id="searchBtn" onclick="handleInput()" aria-label="Analyze place">
+                        <span class="btn-text">Analyze</span>
+                        <div class="loader" style="display:none;"></div>
+                    </button>
+                </div>
+                <button class="advanced-toggle" onclick="toggleAdvanced()" aria-expanded="false" aria-controls="advancedPanel">
+                    <span aria-hidden="true">▾</span> Advanced Settings
+                </button>
+                <div class="advanced-panel" id="advancedPanel">
+                    <div class="form-group">
+                        <label for="apiKeyInput">SerpAPI Key (optional)</label>
+                        <input type="text" id="apiKeyInput" placeholder="Your SerpAPI key (leave empty to use default)">
+                    </div>
+                </div>
+
+                <div class="candidates" id="candidateList" style="display:none;">
+                    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.5rem;">Select a place:</p>
+                    <div id="candidateItems" role="listbox" aria-label="Search results"></div>
+                </div>
+            </div>
+
+            <div class="card" id="resultCard" style="display:none;">
+                <div class="place-header">
+                    <div>
+                        <h3 id="placeName"></h3>
+                        <span class="place-address" id="placeAddress"></span>
+                    </div>
+                    <div class="place-info-right">
+                        <span class="place-google-rating" id="placeRating"></span>
+                        <span style="color:var(--text-muted);font-size:0.85rem;display:block;" id="placeReviewCount"></span>
+                    </div>
+                </div>
+
+                <div class="summary-grid">
+                    <div class="summary-stat">
+                        <div class="stat-value" id="trustScoreValue">--</div>
+                        <div class="stat-label">Overall Trust Score</div>
+                    </div>
+                    <div class="summary-stat">
+                        <div class="stat-value" id="suspiciousRatio">--</div>
+                        <div class="stat-label">Suspicious Reviews</div>
+                    </div>
+                </div>
+
+                <div class="findings" id="findings" role="list" aria-label="Key findings"></div>
+
+                <button class="details-toggle" id="detailsToggle" onclick="toggleDetails()" aria-expanded="false">
+                    <span aria-hidden="true">▾</span> View Detailed Review Analysis (<span id="reviewCount">0</span> reviews)
+                </button>
+
+                <div class="review-list" id="reviewList" style="display:none;" role="list" aria-label="Review details"></div>
+            </div>
+        </main>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay" role="alert" aria-live="polite">
+        <div class="loading-spinner">
+            <div class="loader"></div>
+            <p>Analyzing reviews...</p>
+        </div>
+    </div>
+
+    <script>
+    function getApiKey() {
+        return document.getElementById('apiKeyInput').value.trim() || undefined;
+    }
+
+    function toggleAdvanced() {
+        const panel = document.getElementById('advancedPanel');
+        const btn = document.querySelector('.advanced-toggle');
+        const isExpanded = panel.classList.toggle('show');
+        btn.setAttribute('aria-expanded', isExpanded);
+        btn.innerHTML = `<span aria-hidden="true">${isExpanded ? '▴' : '▾'}</span> Advanced Settings`;
+    }
+
+    function isGoogleMapsUrl(text) {
+        return /google\.\w+\/maps|maps\.google\.|maps\.app\.goo\.gl|goo\.gl\/maps/.test(text);
+    }
+
+    function showLoading(show) {
+        document.getElementById('loadingOverlay').classList.toggle('show', show);
+    }
+
+    async function handleInput() {
+        const input = document.getElementById('placeInput').value.trim();
+        if (!input) return;
+
+        document.getElementById('candidateList').style.display = 'none';
+        document.getElementById('resultCard').style.display = 'none';
+
+        if (isGoogleMapsUrl(input)) {
+            await analyzePlace(input);
+        } else {
+            await searchPlaces(input);
+        }
+    }
+
+    async function searchPlaces(query) {
+        const btn = document.getElementById('searchBtn');
+        btn.disabled = true;
+        btn.querySelector('.loader').style.display = 'block';
+        btn.querySelector('.btn-text').style.display = 'none';
+
+        try {
+            const params = new URLSearchParams({ q: query });
+            const apiKey = getApiKey();
+            if (apiKey) params.append('api_key', apiKey);
+
+            const resp = await fetch('/places/search?' + params);
+            if (!resp.ok) {
+                const err = await resp.json();
+                alert(err.detail || 'Search failed');
+                return;
+            }
+            const data = await resp.json();
+
+            if (data.results.length === 0) {
+                alert('No places found. Try a different search term.');
+                return;
+            }
+
+            if (data.results.length === 1) {
+                await analyzeByDataId(data.results[0].data_id);
+                return;
+            }
+
+            renderCandidates(data.results);
+        } catch (e) {
+            console.error(e);
+            alert('An error occurred during search.');
+        } finally {
+            btn.disabled = false;
+            btn.querySelector('.loader').style.display = 'none';
+            btn.querySelector('.btn-text').style.display = 'block';
+        }
+    }
+
+    function renderCandidates(results) {
+        const container = document.getElementById('candidateItems');
+        container.innerHTML = '';
+        results.forEach((r, index) => {
+            const div = document.createElement('div');
+            div.className = 'candidate-item';
+            div.setAttribute('role', 'option');
+            div.setAttribute('tabindex', '0');
+            div.onclick = () => analyzeByDataId(r.data_id);
+            div.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') analyzeByDataId(r.data_id); };
+            div.innerHTML = `
+                <div>
+                    <div class="candidate-name">${escapeHtml(r.name)}</div>
+                    <div class="candidate-meta">${escapeHtml(r.address)}</div>
+                </div>
+                <div style="text-align:right;">
+                    <div class="candidate-rating">${r.rating ? '★ ' + r.rating : ''}</div>
+                    <div class="candidate-meta">${r.total_reviews ? r.total_reviews + ' reviews' : ''}</div>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+        document.getElementById('candidateList').style.display = 'block';
+    }
+
+    async function analyzePlace(query) {
+        showLoading(true);
+        try {
+            const body = { query };
+            const apiKey = getApiKey();
+            if (apiKey) body.api_key = apiKey;
+
+            const resp = await fetch('/places/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (!resp.ok) {
+                const err = await resp.json();
+                alert(err.detail || 'Analysis failed');
+                return;
+            }
+            const data = await resp.json();
+            renderResults(data);
+        } catch (e) {
+            console.error(e);
+            alert('An error occurred during analysis.');
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    async function analyzeByDataId(dataId) {
+        document.getElementById('candidateList').style.display = 'none';
+        showLoading(true);
+        try {
+            const body = { query: dataId };
+            const apiKey = getApiKey();
+            if (apiKey) body.api_key = apiKey;
+
+            const resp = await fetch('/places/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (!resp.ok) {
+                const err = await resp.json();
+                alert(err.detail || 'Analysis failed');
+                return;
+            }
+            const data = await resp.json();
+            renderResults(data);
+        } catch (e) {
+            console.error(e);
+            alert('An error occurred during analysis.');
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    function trustColor(score) {
+        const pct = score * 100;
+        if (pct >= 80) return 'var(--success)';
+        if (pct >= 50) return 'var(--warning)';
+        return 'var(--danger)';
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function renderResults(data) {
+        const { place, summary, reviews } = data;
+
+        document.getElementById('placeName').textContent = place.name;
+        document.getElementById('placeAddress').textContent = place.address;
+        document.getElementById('placeRating').textContent = place.rating ? '★ ' + place.rating : '';
+        document.getElementById('placeReviewCount').textContent = place.total_reviews ? `(${place.total_reviews} reviews on Google)` : '';
+
+        const trustPct = Math.round(summary.overall_trust_score * 100);
+        const trustEl = document.getElementById('trustScoreValue');
+        trustEl.textContent = trustPct + '%';
+        trustEl.style.color = trustColor(summary.overall_trust_score);
+
+        const ratioEl = document.getElementById('suspiciousRatio');
+        ratioEl.textContent = `${summary.suspicious_count} / ${summary.total_analyzed}`;
+        ratioEl.style.color = summary.suspicious_count > 0 ? 'var(--danger)' : 'var(--success)';
+
+        const findingsEl = document.getElementById('findings');
+        findingsEl.innerHTML = '';
+        summary.key_findings.forEach(f => {
+            const div = document.createElement('div');
+            div.className = 'finding-item';
+            div.setAttribute('role', 'listitem');
+            div.textContent = f;
+            findingsEl.appendChild(div);
+        });
+
+        document.getElementById('reviewCount').textContent = reviews.length;
+
+        const listEl = document.getElementById('reviewList');
+        listEl.innerHTML = '';
+        reviews.forEach(r => {
+            const pct = Math.round(r.trust_score * 100);
+            const cls = r.is_suspicious ? 'suspicious' : (r.trust_score < 0.8 ? 'moderate' : '');
+            const card = document.createElement('div');
+            card.className = 'review-card ' + cls;
+            card.setAttribute('role', 'listitem');
+            card.innerHTML = `
+                <div class="review-header">
+                    <span class="review-author">${escapeHtml(r.author)}</span>
+                    <span class="review-date">${escapeHtml(r.date)}</span>
+                </div>
+                <div class="review-stars">${r.rating ? '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating) : ''}</div>
+                <div class="review-text">${escapeHtml(r.text)}</div>
+                <div class="review-trust">
+                    <div class="trust-bar">
+                        <div class="trust-bar-fill" style="width:${pct}%;background:${trustColor(r.trust_score)};"></div>
+                    </div>
+                    <span class="trust-value" style="color:${trustColor(r.trust_score)}">${pct}%</span>
+                </div>
+                ${r.reasons.length ? '<div class="review-reasons">' + r.reasons.map(reason => '<span>' + escapeHtml(reason) + '</span>').join('') + '</div>' : ''}
+            `;
+            listEl.appendChild(card);
+        });
+
+        listEl.style.display = 'none';
+        const detailsBtn = document.getElementById('detailsToggle');
+        detailsBtn.innerHTML = `<span aria-hidden="true">▾</span> View Detailed Review Analysis (<span id="reviewCount">${reviews.length}</span> reviews)`;
+        detailsBtn.setAttribute('aria-expanded', 'false');
+        document.getElementById('resultCard').style.display = 'block';
+
+        // Scroll to results
+        document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function toggleDetails() {
+        const list = document.getElementById('reviewList');
+        const btn = document.getElementById('detailsToggle');
+        const count = document.getElementById('reviewCount').textContent;
+        const isExpanded = list.style.display === 'none';
+
+        list.style.display = isExpanded ? 'block' : 'none';
+        btn.setAttribute('aria-expanded', isExpanded);
+        btn.innerHTML = `<span aria-hidden="true">${isExpanded ? '▴' : '▾'}</span> ${isExpanded ? 'Hide' : 'View'} Detailed Review Analysis (<span id="reviewCount">${count}</span> reviews)`;
+    }
+
+    // Enter key triggers search
+    document.getElementById('placeInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter') handleInput();
+    });
+    </script>
+</body>
+</html>

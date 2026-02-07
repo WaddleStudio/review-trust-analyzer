@@ -23,6 +23,7 @@ MANIFEST
 
 # Virtual Env
 venv/
+.venv/
 env/
 ENV/
 .env
@@ -41,3 +42,9 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude Code / Superpowers
+# Note: .claude/ directory should be committed to version control
+# to share skills with the team. Only exclude temporary files:
+.claude/plans/
+.claude/.cache/

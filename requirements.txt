@@ -11,3 +11,5 @@ httpx
 python-multipart
 pydantic-settings
 aiofiles
+textblob
+sentence-transformers

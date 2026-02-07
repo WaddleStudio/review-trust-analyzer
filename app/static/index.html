@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,13 +10,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
+
 <body>
     <div class="background-glow"></div>
     <div class="container">
         <header>
             <div class="logo">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path
+                        d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
                 <h1>Trust Analyzer</h1>
             </div>
@@ -25,7 +29,14 @@
         <main>
             <div class="card input-card">
                 <h2>Analyze Review</h2>
-                <form id="analyzeForm">
+                <nav class="tabs" role="tablist" aria-label="Analysis type">
+                    <button class="tab-btn active" onclick="switchTab('single')" role="tab" aria-selected="true" aria-controls="analyzeForm">Single Review</button>
+                    <button class="tab-btn" onclick="switchTab('batch')" role="tab" aria-selected="false" aria-controls="batchForm">Batch Upload</button>
+                    <a href="/places" class="tab-btn" role="tab">Place Analysis</a>
+                </nav>
+
+                <!-- Single Review Form -->
+                <form id="analyzeForm" class="tab-content active" role="tabpanel">
                     <div class="form-group">
                         <label for="platform">Platform</label>
                         <select id="platform" name="platform">
@@ -37,8 +48,8 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="rating">Rating</label>
-                        <div class="star-rating">
+                        <label id="rating-label">Rating</label>
+                        <div class="star-rating" role="radiogroup" aria-labelledby="rating-label">
                             <input type="radio" id="star5" name="rating" value="5" checked /><label for="star5" title="5 stars">★</label>
                             <input type="radio" id="star4" name="rating" value="4" /><label for="star4" title="4 stars">★</label>
                             <input type="radio" id="star3" name="rating" value="3" /><label for="star3" title="3 stars">★</label>
@@ -62,14 +73,30 @@
                         <div class="loader" style="display: none;"></div>
                     </button>
                 </form>
+
+                <!-- Batch Upload Form -->
+                <form id="batchForm" class="tab-content" style="display: none;" role="tabpanel">
+                    <div class="form-group">
+                        <label for="csvFile">Upload CSV File</label>
+                        <input type="file" id="csvFile" name="file" accept=".csv">
+                        <p class="hint">Format: platform, rating, user_id, text</p>
+                    </div>
+                    <button type="submit" id="batchSubmitBtn">
+                        <span class="btn-text">Analyze Batch</span>
+                        <div class="loader" style="display: none;"></div>
+                    </button>
+                </form>
             </div>
 
+            <!-- Single Result Card -->
             <div class="card result-card hidden" id="resultCard">
                 <div class="score-container">
                     <div class="score-circle">
-                        <svg viewBox="0 0 36 36" class="circular-chart">
-                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                            <path class="circle" id="scoreCircle" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        <svg viewBox="0 0 36 36" class="circular-chart" role="img" aria-label="Trust score indicator">
+                            <path class="circle-bg"
+                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path class="circle" id="scoreCircle" stroke-dasharray="0, 100"
+                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                             <text x="18" y="20.35" class="percentage" id="scoreText">0%</text>
                         </svg>
                     </div>
@@ -78,16 +105,58 @@
                         <p class="trust-label">Trust Score</p>
                     </div>
                 </div>
-                
+
                 <div class="reasons-container">
                     <h4>Analysis Reasons</h4>
-                    <ul id="reasonsList">
+                    <ul id="reasonsList" role="list">
                         <!-- Reasons will be injected here -->
                     </ul>
+                    <div class="debug-info" style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted); border-top: 1px dashed var(--border); padding-top: 0.5rem;">
+                        <span>Sentiment Score: <strong id="sentimentScoreValue">--</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Batch Results -->
+            <div class="card result-card hidden" id="batchResultCard">
+                <h3>Batch Analysis Results</h3>
+                <div class="table-container">
+                    <table id="batchTable">
+                        <thead>
+                            <tr>
+                                <th scope="col">ID</th>
+                                <th scope="col">Details</th>
+                                <th scope="col">Score</th>
+                                <th scope="col">Verdict</th>
+                                <th scope="col">Reasons</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Rows injected via JS -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </main>
     </div>
+
+    <!-- Review Detail Modal -->
+    <div id="reviewModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-content">
+            <button class="close-modal" aria-label="Close modal">&times;</button>
+            <h3 id="modalTitle" style="margin-bottom: 1rem;">Review Details</h3>
+            <div style="margin-bottom: 1rem;">
+                <span id="modalRating" style="color: #fbbf24; font-size: 1.2rem;"></span>
+                <span id="modalPlatform" style="color: var(--text-muted); margin-left: 0.5rem; font-size: 0.9rem;"></span>
+            </div>
+            <p id="modalText" style="line-height: 1.6; color: var(--text-main); background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;"></p>
+            <div style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted);">
+                User ID: <span id="modalUserId"></span>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/script.js"></script>
 </body>
+
 </html>

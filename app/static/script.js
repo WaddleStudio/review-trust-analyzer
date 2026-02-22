@@ -144,8 +144,9 @@ function switchTab(tab) {
         btn.classList.toggle('active', isActive);
         btn.setAttribute('aria-selected', isActive);
     });
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    document.getElementById(tab === 'single' ? 'analyzeForm' : 'batchForm').classList.add('active');
+    const isSingle = tab === 'single';
+    document.getElementById('analyzeForm').classList.toggle('hidden', !isSingle);
+    document.getElementById('batchForm').classList.toggle('hidden', isSingle);
     document.getElementById('resultCard').classList.add('hidden');
     document.getElementById('batchResultCard').classList.add('hidden');
 }

@@ -498,6 +498,7 @@ button:disabled {
 #batchResultCard {
     max-width: 1000px !important;
     width: 100%;
+    grid-column: 1 / -1;
 }
 
 .table-container {
@@ -705,11 +706,6 @@ td.verdict-suspicious {
 .text-danger { color: var(--danger); }
 .text-muted { color: var(--text-muted); }
 
-/* ===========================================
-   Tab Content Visibility
-   =========================================== */
-.tab-content { display: none; }
-.tab-content.active { display: block; }
 
 /* ===========================================
    Toast Notifications

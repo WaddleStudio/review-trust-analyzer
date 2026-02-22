@@ -1,3 +1,17 @@
+// Toast notifications (global — used by both DOMContentLoaded and batch form handlers)
+function showToast(message, type = 'error') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('show'));
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 200);
+    }, 4000);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('analyzeForm');
     const submitBtn = document.getElementById('submitBtn');
@@ -9,13 +23,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const verdict = document.getElementById('verdict');
     const reasonsList = document.getElementById('reasonsList');
 
+    // Fetch API Usage
+    async function fetchApiUsage() {
+        try {
+            const resp = await fetch('/api/serpapi/usage');
+            const data = await resp.json();
+            const creditsElem = document.getElementById('api-credits');
+            if (creditsElem) {
+                const limit = data.plan_searches_left || data.searches_per_month || 0;
+                creditsElem.textContent = limit;
+                creditsElem.classList.toggle('text-danger', limit < 10);
+            }
+        } catch (e) {
+            console.error(e);
+            const creditsElem = document.getElementById('api-credits');
+            if (creditsElem) creditsElem.textContent = 'Error';
+        }
+    }
+    fetchApiUsage();
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
         // UI Loading State
         submitBtn.disabled = true;
-        btnText.style.display = 'none';
-        loader.style.display = 'block';
+        btnText.classList.add('hidden');
+        loader.classList.remove('hidden');
         resultCard.classList.add('hidden');
 
         // Gather Data
@@ -45,44 +78,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.error(error);
-            alert('An error occurred while analyzing the review.');
+            showToast('An error occurred while analyzing the review.');
         } finally {
             // Reset UI
             submitBtn.disabled = false;
-            btnText.style.display = 'block';
-            loader.style.display = 'none';
+            btnText.classList.remove('hidden');
+            loader.classList.add('hidden');
         }
     });
 
     function displayResult(data) {
         resultCard.classList.remove('hidden');
 
-        // Trust Score is 0-1. 
-        // 1.0 = Trustworthy, 0.0 = Suspicious? 
-        // Wait, the model outputs "trust_score" as probability of class 0 (Not Suspicious).
-        // So High Trust Score = Good.
-
         const percentage = Math.round(data.trust_score * 100);
-        const isSuspicious = data.is_suspicious;
 
         // Animate Circle
-        // Stroke-dasharray: value, 100
         scoreCircle.setAttribute('stroke-dasharray', `${percentage}, 100`);
         scoreText.textContent = `${percentage}%`;
 
-        // Color Coding
+        // Color Coding (scoreCircle stroke stays inline — SVG presentation attribute)
         if (percentage >= 80) {
             scoreCircle.style.stroke = 'var(--success)';
             verdict.textContent = 'Trustworthy';
-            verdict.style.color = 'var(--success)';
+            verdict.className = 'text-success';
         } else if (percentage >= 50) {
             scoreCircle.style.stroke = 'var(--warning)';
             verdict.textContent = 'Moderate Risk';
-            verdict.style.color = 'var(--warning)';
+            verdict.className = 'text-warning';
         } else {
             scoreCircle.style.stroke = 'var(--danger)';
             verdict.textContent = 'Suspicious';
-            verdict.style.color = 'var(--danger)';
+            verdict.className = 'text-danger';
         }
 
         // Reasons
@@ -104,32 +130,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const sentimentElem = document.getElementById('sentimentScoreValue');
         if (sentimentElem) {
             sentimentElem.textContent = data.sentiment_score.toFixed(4);
-            // Color code sentiment
-            if (data.sentiment_score > 0.5) sentimentElem.style.color = 'var(--success)';
-            else if (data.sentiment_score < -0.5) sentimentElem.style.color = 'var(--danger)';
-            else sentimentElem.style.color = 'var(--text-muted)';
+            if (data.sentiment_score > 0.5) sentimentElem.className = 'text-success';
+            else if (data.sentiment_score < -0.5) sentimentElem.className = 'text-danger';
+            else sentimentElem.className = 'text-muted';
         }
     }
 });
 
 // Tab Switching
 function switchTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
-
-    if (tab === 'single') {
-        document.querySelector('.tab-btn:nth-child(1)').classList.add('active');
-        document.getElementById('analyzeForm').style.display = 'block';
-        document.getElementById('analyzeForm').classList.add('active');
-        document.getElementById('resultCard').classList.add('hidden');
-        document.getElementById('batchResultCard').classList.add('hidden');
-    } else {
-        document.querySelector('.tab-btn:nth-child(2)').classList.add('active');
-        document.getElementById('batchForm').style.display = 'block';
-        document.getElementById('batchForm').classList.add('active');
-        document.getElementById('resultCard').classList.add('hidden');
-        document.getElementById('batchResultCard').classList.add('hidden');
-    }
+    document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
+        const isActive = btn.dataset.tab === tab;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', isActive);
+    });
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById(tab === 'single' ? 'analyzeForm' : 'batchForm').classList.add('active');
+    document.getElementById('resultCard').classList.add('hidden');
+    document.getElementById('batchResultCard').classList.add('hidden');
 }
 
 // Batch Form Submission
@@ -138,7 +156,7 @@ document.getElementById('batchForm').addEventListener('submit', async (e) => {
 
     const fileInput = document.getElementById('csvFile');
     if (!fileInput.files[0]) {
-        alert("Please select a CSV file.");
+        showToast('Please select a CSV file.', 'info');
         return;
     }
 
@@ -147,8 +165,8 @@ document.getElementById('batchForm').addEventListener('submit', async (e) => {
     const btnText = btn.querySelector('.btn-text');
 
     btn.disabled = true;
-    loader.style.display = 'inline-block';
-    btnText.style.opacity = '0.5';
+    loader.classList.remove('hidden');
+    btnText.classList.add('hidden');
 
     const formData = new FormData();
     formData.append("file", fileInput.files[0]);
@@ -178,9 +196,6 @@ document.getElementById('batchForm').addEventListener('submit', async (e) => {
             const viewBtn = document.createElement('button');
             viewBtn.textContent = "View details";
             viewBtn.className = "view-details-btn";
-            // Pass data to modal. Note: data might not have rating/platform if not returned by backend.
-            // But we can assume defaults or update backend to return them.
-            // For now, let's use what we have.
             viewBtn.onclick = () => openModal(res, index + 1);
             tdText.appendChild(viewBtn);
             tr.appendChild(tdText);
@@ -189,25 +204,22 @@ document.getElementById('batchForm').addEventListener('submit', async (e) => {
             const tdScore = document.createElement('td');
             const percentage = Math.round(res.trust_score * 100);
             tdScore.textContent = `${percentage}%`;
-            if (res.trust_score >= 0.8) tdScore.style.color = 'var(--success)';
-            else if (res.trust_score >= 0.5) tdScore.style.color = 'var(--warning)';
-            else tdScore.style.color = 'var(--danger)';
+            if (res.trust_score >= 0.8) tdScore.className = 'text-success';
+            else if (res.trust_score >= 0.5) tdScore.className = 'text-warning';
+            else tdScore.className = 'text-danger';
             tr.appendChild(tdScore);
 
             // Verdict
             const tdVerdict = document.createElement('td');
             if (res.is_suspicious) {
                 tdVerdict.textContent = "Suspicious";
-                tdVerdict.className = "verdict-suspicious";
-                tdVerdict.style.color = 'var(--danger)';
+                tdVerdict.className = 'verdict-suspicious text-danger';
             } else if (res.trust_score < 0.6) {
                 tdVerdict.textContent = "Moderate Risk";
-                tdVerdict.className = "verdict-moderate";
-                tdVerdict.style.color = 'var(--warning)';
+                tdVerdict.className = 'verdict-moderate text-warning';
             } else {
                 tdVerdict.textContent = "Trustworthy";
-                tdVerdict.className = "verdict-trustworthy";
-                tdVerdict.style.color = 'var(--success)';
+                tdVerdict.className = 'verdict-trustworthy text-success';
             }
             tr.appendChild(tdVerdict);
 
@@ -224,11 +236,11 @@ document.getElementById('batchForm').addEventListener('submit', async (e) => {
 
     } catch (error) {
         console.error('Error:', error);
-        alert('An error occurred while analyzing batch.');
+        showToast('An error occurred while analyzing batch.');
     } finally {
         btn.disabled = false;
-        loader.style.display = 'none';
-        btnText.style.opacity = '1';
+        loader.classList.add('hidden');
+        btnText.classList.remove('hidden');
     }
 });
 
@@ -242,17 +254,17 @@ function openModal(data, id) {
     document.getElementById("modalText").textContent = data.text || "No content available.";
     document.getElementById("modalUserId").textContent = data.user_id || "Anonymous";
 
-    modal.style.display = "block";
+    modal.classList.add('open');
 }
 
 if (span) {
-    span.onclick = function () {
-        modal.style.display = "none";
-    }
+    span.onclick = () => modal.classList.remove('open');
 }
 
-window.onclick = function (event) {
-    if (event.target == modal) {
-        modal.style.display = "none";
-    }
-}
+window.addEventListener('click', e => {
+    if (e.target === modal) modal.classList.remove('open');
+});
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') modal.classList.remove('open');
+});

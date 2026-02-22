@@ -15,13 +15,20 @@
     <div class="background-glow"></div>
     <div class="container">
         <header>
-            <div class="logo">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <path
-                        d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <h1>Trust Analyzer</h1>
+            <div class="header-top">
+                <div class="logo">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true">
+                        <path
+                            d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <h1>Trust Analyzer</h1>
+                </div>
+                <div id="api-usage" class="api-usage-badge">
+                    <span>SerpAPI Credits: </span>
+                    <strong id="api-credits">Loading...</strong>
+                </div>
             </div>
             <p class="subtitle">Detect fake reviews with AI-powered precision.</p>
         </header>
@@ -30,8 +37,10 @@
             <div class="card input-card">
                 <h2>Analyze Review</h2>
                 <nav class="tabs" role="tablist" aria-label="Analysis type">
-                    <button class="tab-btn active" onclick="switchTab('single')" role="tab" aria-selected="true" aria-controls="analyzeForm">Single Review</button>
-                    <button class="tab-btn" onclick="switchTab('batch')" role="tab" aria-selected="false" aria-controls="batchForm">Batch Upload</button>
+                    <button class="tab-btn active" data-tab="single" onclick="switchTab('single')" role="tab" aria-selected="true"
+                        aria-controls="analyzeForm">Single Review</button>
+                    <button class="tab-btn" data-tab="batch" onclick="switchTab('batch')" role="tab" aria-selected="false"
+                        aria-controls="batchForm">Batch Upload</button>
                     <a href="/places" class="tab-btn" role="tab">Place Analysis</a>
                 </nav>
 
@@ -50,17 +59,23 @@
                     <div class="form-group">
                         <label id="rating-label">Rating</label>
                         <div class="star-rating" role="radiogroup" aria-labelledby="rating-label">
-                            <input type="radio" id="star5" name="rating" value="5" checked /><label for="star5" title="5 stars">★</label>
-                            <input type="radio" id="star4" name="rating" value="4" /><label for="star4" title="4 stars">★</label>
-                            <input type="radio" id="star3" name="rating" value="3" /><label for="star3" title="3 stars">★</label>
-                            <input type="radio" id="star2" name="rating" value="2" /><label for="star2" title="2 stars">★</label>
-                            <input type="radio" id="star1" name="rating" value="1" /><label for="star1" title="1 star">★</label>
+                            <input type="radio" id="star5" name="rating" value="5" checked /><label for="star5"
+                                title="5 stars">★</label>
+                            <input type="radio" id="star4" name="rating" value="4" /><label for="star4"
+                                title="4 stars">★</label>
+                            <input type="radio" id="star3" name="rating" value="3" /><label for="star3"
+                                title="3 stars">★</label>
+                            <input type="radio" id="star2" name="rating" value="2" /><label for="star2"
+                                title="2 stars">★</label>
+                            <input type="radio" id="star1" name="rating" value="1" /><label for="star1"
+                                title="1 star">★</label>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label for="user_id">User ID</label>
-                        <input type="text" id="user_id" name="user_id" placeholder="e.g. user_12345" value="test_user_001">
+                        <input type="text" id="user_id" name="user_id" placeholder="e.g. user_12345"
+                            value="test_user_001">
                     </div>
 
                     <div class="form-group">
@@ -70,12 +85,12 @@
 
                     <button type="submit" id="submitBtn">
                         <span class="btn-text">Analyze Trust Score</span>
-                        <div class="loader" style="display: none;"></div>
+                        <div class="loader hidden"></div>
                     </button>
                 </form>
 
                 <!-- Batch Upload Form -->
-                <form id="batchForm" class="tab-content" style="display: none;" role="tabpanel">
+                <form id="batchForm" class="tab-content" role="tabpanel">
                     <div class="form-group">
                         <label for="csvFile">Upload CSV File</label>
                         <input type="file" id="csvFile" name="file" accept=".csv">
@@ -83,7 +98,7 @@
                     </div>
                     <button type="submit" id="batchSubmitBtn">
                         <span class="btn-text">Analyze Batch</span>
-                        <div class="loader" style="display: none;"></div>
+                        <div class="loader hidden"></div>
                     </button>
                 </form>
             </div>
@@ -111,7 +126,7 @@
                     <ul id="reasonsList" role="list">
                         <!-- Reasons will be injected here -->
                     </ul>
-                    <div class="debug-info" style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted); border-top: 1px dashed var(--border); padding-top: 0.5rem;">
+                    <div class="debug-info">
                         <span>Sentiment Score: <strong id="sentimentScoreValue">--</strong></span>
                     </div>
                 </div>
@@ -141,21 +156,22 @@
     </div>
 
     <!-- Review Detail Modal -->
-    <div id="reviewModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div id="reviewModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalText">
         <div class="modal-content">
             <button class="close-modal" aria-label="Close modal">&times;</button>
-            <h3 id="modalTitle" style="margin-bottom: 1rem;">Review Details</h3>
-            <div style="margin-bottom: 1rem;">
-                <span id="modalRating" style="color: #fbbf24; font-size: 1.2rem;"></span>
-                <span id="modalPlatform" style="color: var(--text-muted); margin-left: 0.5rem; font-size: 0.9rem;"></span>
+            <h3 id="modalTitle">Review Details</h3>
+            <div class="modal-header">
+                <span id="modalRating" class="modal-rating"></span>
+                <span id="modalPlatform" class="modal-platform"></span>
             </div>
-            <p id="modalText" style="line-height: 1.6; color: var(--text-main); background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;"></p>
-            <div style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted);">
+            <p id="modalText" class="modal-text"></p>
+            <div class="modal-meta">
                 User ID: <span id="modalUserId"></span>
             </div>
         </div>
     </div>
 
+    <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
     <script src="/static/script.js"></script>
 </body>
 

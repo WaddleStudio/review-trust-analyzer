@@ -137,16 +137,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Tab Switching
+// View Switching
 function switchTab(tab) {
-    document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
+    document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
         const isActive = btn.dataset.tab === tab;
         btn.classList.toggle('active', isActive);
-        btn.setAttribute('aria-selected', isActive);
+        btn.setAttribute('aria-current', isActive ? 'true' : 'false');
     });
-    const isSingle = tab === 'single';
-    document.getElementById('analyzeForm').classList.toggle('hidden', !isSingle);
-    document.getElementById('batchForm').classList.toggle('hidden', isSingle);
+    document.getElementById('mainArea').dataset.view = tab;
     document.getElementById('resultCard').classList.add('hidden');
     document.getElementById('batchResultCard').classList.add('hidden');
 }

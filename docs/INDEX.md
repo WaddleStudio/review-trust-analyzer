@@ -24,6 +24,7 @@
 - `app/main.py` — 應用入口
 - `app/api/endpoints.py` — API 路由
 - `app/models.py` — SQLModel 資料庫模型
+- `app/database.py` — 資料庫連線設定
 - `app/services/inference.py` — ML 推論服務
 - `app/services/serpapi.py` — SerpAPI 整合（Google Maps）
 
@@ -43,6 +44,7 @@
 - `app/static/places.html` — 商家評論分析
 - `app/static/labeling.html` — 人工標註佇列
 - `app/static/style.css` — 共用 Glassmorphism 樣式
+- `app/static/script.js` — 前端互動邏輯（分析表單、批次上傳、Toast 通知）
 
 ### 腳本
 - `scripts/fetch_batch_reviews.py` — 批次爬取 Google Maps 評論

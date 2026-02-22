@@ -89,11 +89,12 @@
 
         .candidate-item:hover {
             border-color: var(--primary);
-            background: rgba(99,102,241,0.1);
+            background: rgba(59,130,246,0.1);
         }
         .candidate-name { font-weight: 600; }
         .candidate-meta { color: var(--text-muted); font-size: 0.85rem; }
         .candidate-rating { color: var(--warning); }
+        .candidate-info-right { text-align: right; }
 
         /* Summary Grid */
         .summary-grid {
@@ -223,12 +224,19 @@
             border-radius: 3px;
             transition: width 0.5s ease;
         }
+        .trust-bar-fill.success { background: var(--success); }
+        .trust-bar-fill.warning { background: var(--warning); }
+        .trust-bar-fill.danger  { background: var(--danger); }
+
         .trust-value {
             font-weight: 600;
             font-size: 0.85rem;
             min-width: 3rem;
             text-align: right;
         }
+        .trust-value.success { color: var(--success); }
+        .trust-value.warning { color: var(--warning); }
+        .trust-value.danger  { color: var(--danger); }
 
         .review-reasons { margin-top: 0.5rem; }
         .review-reasons span {
@@ -269,6 +277,7 @@
 
         .place-address { color: var(--text-muted); font-size: 0.85rem; }
         .place-google-rating { color: var(--warning); font-weight: 600; }
+        .place-review-count { color: var(--text-muted); font-size: 0.85rem; display: block; }
         .place-info-right { text-align: left; }
 
         @media (min-width: 480px) {
@@ -327,7 +336,7 @@
                     <input type="text" id="placeInput" placeholder="Paste a Google Maps URL or enter a place name...">
                     <button id="searchBtn" onclick="handleInput()" aria-label="Analyze place">
                         <span class="btn-text">Analyze</span>
-                        <div class="loader" style="display:none;"></div>
+                        <div class="loader hidden"></div>
                     </button>
                 </div>
                 <button class="advanced-toggle" onclick="toggleAdvanced()" aria-expanded="false" aria-controls="advancedPanel">
@@ -340,13 +349,13 @@
                     </div>
                 </div>
 
-                <div class="candidates" id="candidateList" style="display:none;">
+                <div class="candidates hidden" id="candidateList">
                     <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.5rem;">Select a place:</p>
                     <div id="candidateItems" role="listbox" aria-label="Search results"></div>
                 </div>
             </div>
 
-            <div class="card" id="resultCard" style="display:none;">
+            <div class="card hidden" id="resultCard">
                 <div class="place-header">
                     <div>
                         <h3 id="placeName"></h3>
@@ -354,7 +363,7 @@
                     </div>
                     <div class="place-info-right">
                         <span class="place-google-rating" id="placeRating"></span>
-                        <span style="color:var(--text-muted);font-size:0.85rem;display:block;" id="placeReviewCount"></span>
+                        <span class="place-review-count" id="placeReviewCount"></span>
                     </div>
                 </div>
 
@@ -375,7 +384,7 @@
                     <span aria-hidden="true">▾</span> View Detailed Review Analysis (<span id="reviewCount">0</span> reviews)
                 </button>
 
-                <div class="review-list" id="reviewList" style="display:none;" role="list" aria-label="Review details"></div>
+                <div class="review-list hidden" id="reviewList" role="list" aria-label="Review details"></div>
             </div>
         </main>
     </div>
@@ -387,7 +396,22 @@
         </div>
     </div>
 
+    <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
     <script>
+    function showToast(message, type = 'error') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.add('show'));
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 200);
+        }, 4000);
+    }
+
     function getApiKey() {
         return document.getElementById('apiKeyInput').value.trim() || undefined;
     }
@@ -408,12 +432,19 @@
         document.getElementById('loadingOverlay').classList.toggle('show', show);
     }
 
+    function trustClass(score) {
+        const pct = score * 100;
+        if (pct >= 80) return 'success';
+        if (pct >= 50) return 'warning';
+        return 'danger';
+    }
+
     async function handleInput() {
         const input = document.getElementById('placeInput').value.trim();
         if (!input) return;
 
-        document.getElementById('candidateList').style.display = 'none';
-        document.getElementById('resultCard').style.display = 'none';
+        document.getElementById('candidateList').classList.add('hidden');
+        document.getElementById('resultCard').classList.add('hidden');
 
         if (isGoogleMapsUrl(input)) {
             await analyzePlace(input);
@@ -425,8 +456,8 @@
     async function searchPlaces(query) {
         const btn = document.getElementById('searchBtn');
         btn.disabled = true;
-        btn.querySelector('.loader').style.display = 'block';
-        btn.querySelector('.btn-text').style.display = 'none';
+        btn.querySelector('.loader').classList.remove('hidden');
+        btn.querySelector('.btn-text').classList.add('hidden');
 
         try {
             const params = new URLSearchParams({ q: query });
@@ -436,13 +467,13 @@
             const resp = await fetch('/places/search?' + params);
             if (!resp.ok) {
                 const err = await resp.json();
-                alert(err.detail || 'Search failed');
+                showToast(err.detail || 'Search failed');
                 return;
             }
             const data = await resp.json();
 
             if (data.results.length === 0) {
-                alert('No places found. Try a different search term.');
+                showToast('No places found. Try a different search term.', 'info');
                 return;
             }
 
@@ -454,11 +485,11 @@
             renderCandidates(data.results);
         } catch (e) {
             console.error(e);
-            alert('An error occurred during search.');
+            showToast('An error occurred during search.');
         } finally {
             btn.disabled = false;
-            btn.querySelector('.loader').style.display = 'none';
-            btn.querySelector('.btn-text').style.display = 'block';
+            btn.querySelector('.loader').classList.add('hidden');
+            btn.querySelector('.btn-text').classList.remove('hidden');
         }
     }
 
@@ -477,14 +508,14 @@
                     <div class="candidate-name">${escapeHtml(r.name)}</div>
                     <div class="candidate-meta">${escapeHtml(r.address)}</div>
                 </div>
-                <div style="text-align:right;">
+                <div class="candidate-info-right">
                     <div class="candidate-rating">${r.rating ? '★ ' + r.rating : ''}</div>
                     <div class="candidate-meta">${r.total_reviews ? r.total_reviews + ' reviews' : ''}</div>
                 </div>
             `;
             container.appendChild(div);
         });
-        document.getElementById('candidateList').style.display = 'block';
+        document.getElementById('candidateList').classList.remove('hidden');
     }
 
     async function analyzePlace(query) {
@@ -502,21 +533,21 @@
 
             if (!resp.ok) {
                 const err = await resp.json();
-                alert(err.detail || 'Analysis failed');
+                showToast(err.detail || 'Analysis failed');
                 return;
             }
             const data = await resp.json();
             renderResults(data);
         } catch (e) {
             console.error(e);
-            alert('An error occurred during analysis.');
+            showToast('An error occurred during analysis.');
         } finally {
             showLoading(false);
         }
     }
 
     async function analyzeByDataId(dataId) {
-        document.getElementById('candidateList').style.display = 'none';
+        document.getElementById('candidateList').classList.add('hidden');
         showLoading(true);
         try {
             const body = { query: dataId };
@@ -530,24 +561,17 @@
             });
             if (!resp.ok) {
                 const err = await resp.json();
-                alert(err.detail || 'Analysis failed');
+                showToast(err.detail || 'Analysis failed');
                 return;
             }
             const data = await resp.json();
             renderResults(data);
         } catch (e) {
             console.error(e);
-            alert('An error occurred during analysis.');
+            showToast('An error occurred during analysis.');
         } finally {
             showLoading(false);
         }
-    }
-
-    function trustColor(score) {
-        const pct = score * 100;
-        if (pct >= 80) return 'var(--success)';
-        if (pct >= 50) return 'var(--warning)';
-        return 'var(--danger)';
     }
 
     function escapeHtml(text) {
@@ -567,11 +591,11 @@
         const trustPct = Math.round(summary.overall_trust_score * 100);
         const trustEl = document.getElementById('trustScoreValue');
         trustEl.textContent = trustPct + '%';
-        trustEl.style.color = trustColor(summary.overall_trust_score);
+        trustEl.className = `stat-value text-${trustClass(summary.overall_trust_score)}`;
 
         const ratioEl = document.getElementById('suspiciousRatio');
         ratioEl.textContent = `${summary.suspicious_count} / ${summary.total_analyzed}`;
-        ratioEl.style.color = summary.suspicious_count > 0 ? 'var(--danger)' : 'var(--success)';
+        ratioEl.className = `stat-value ${summary.suspicious_count > 0 ? 'text-danger' : 'text-success'}`;
 
         const findingsEl = document.getElementById('findings');
         findingsEl.innerHTML = '';
@@ -589,6 +613,7 @@
         listEl.innerHTML = '';
         reviews.forEach(r => {
             const pct = Math.round(r.trust_score * 100);
+            const tc = trustClass(r.trust_score);
             const cls = r.is_suspicious ? 'suspicious' : (r.trust_score < 0.8 ? 'moderate' : '');
             const card = document.createElement('div');
             card.className = 'review-card ' + cls;
@@ -602,20 +627,20 @@
                 <div class="review-text">${escapeHtml(r.text)}</div>
                 <div class="review-trust">
                     <div class="trust-bar">
-                        <div class="trust-bar-fill" style="width:${pct}%;background:${trustColor(r.trust_score)};"></div>
+                        <div class="trust-bar-fill ${tc}" style="width:${pct}%;"></div>
                     </div>
-                    <span class="trust-value" style="color:${trustColor(r.trust_score)}">${pct}%</span>
+                    <span class="trust-value ${tc}">${pct}%</span>
                 </div>
                 ${r.reasons.length ? '<div class="review-reasons">' + r.reasons.map(reason => '<span>' + escapeHtml(reason) + '</span>').join('') + '</div>' : ''}
             `;
             listEl.appendChild(card);
         });
 
-        listEl.style.display = 'none';
+        listEl.classList.add('hidden');
         const detailsBtn = document.getElementById('detailsToggle');
         detailsBtn.innerHTML = `<span aria-hidden="true">▾</span> View Detailed Review Analysis (<span id="reviewCount">${reviews.length}</span> reviews)`;
         detailsBtn.setAttribute('aria-expanded', 'false');
-        document.getElementById('resultCard').style.display = 'block';
+        document.getElementById('resultCard').classList.remove('hidden');
 
         // Scroll to results
         document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -625,9 +650,9 @@
         const list = document.getElementById('reviewList');
         const btn = document.getElementById('detailsToggle');
         const count = document.getElementById('reviewCount').textContent;
-        const isExpanded = list.style.display === 'none';
+        const isExpanded = list.classList.contains('hidden');
 
-        list.style.display = isExpanded ? 'block' : 'none';
+        list.classList.toggle('hidden', !isExpanded);
         btn.setAttribute('aria-expanded', isExpanded);
         btn.innerHTML = `<span aria-hidden="true">${isExpanded ? '▴' : '▾'}</span> ${isExpanded ? 'Hide' : 'View'} Detailed Review Analysis (<span id="reviewCount">${count}</span> reviews)`;
     }

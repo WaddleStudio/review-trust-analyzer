@@ -5,13 +5,21 @@ from datetime import datetime
 from typing import List, Optional
 
 from app.database import get_session
-from app.models import ReviewRaw, ReviewFeatures, ReviewScore
+from app.models import ReviewRaw, ReviewFeatures, ReviewScore, LabelingTask
 from features.text_features import extract_text_features
 from features.user_behavior_features import get_user_stats
 from app.services.inference import model_service
 from app.services.serpapi import SerpAPIService
 
 router = APIRouter()
+
+@router.get("/api/serpapi/usage")
+def get_serpapi_usage():
+    try:
+        svc = SerpAPIService()
+        return svc.get_account_info()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 class ReviewCreate(BaseModel):
     text: str
@@ -26,6 +34,8 @@ class ReviewResponse(BaseModel):
     reasons: List[str]
     sentiment_score: float
     text: Optional[str] = None
+    rule_score: Optional[float] = None
+    model_score: Optional[float] = None
 
 @router.post("/reviews/score", response_model=ReviewResponse)
 def score_review(review: ReviewCreate, db: Session = Depends(get_session)):
@@ -43,9 +53,15 @@ def score_review(review: ReviewCreate, db: Session = Depends(get_session)):
     
     # 2. Extract Features
     text_feats = extract_text_features(review.text)
-    user_feats = get_user_stats(review.user_id, db)
+    user_feats = get_user_stats(review.user_id, db, review.rating)
+    from features.semantic_features import calculate_semantic_promo_score
+    semantic_score = calculate_semantic_promo_score(review.text)
     
-    all_features = {**text_feats, **user_feats}
+    all_features = {
+        **text_feats, 
+        **user_feats, 
+        "semantic_promo_score": semantic_score
+    }
     
     db_features = ReviewFeatures(
         id=db_review.id,
@@ -53,13 +69,16 @@ def score_review(review: ReviewCreate, db: Session = Depends(get_session)):
         avg_word_length=all_features["avg_word_length"],
         sentiment_score=all_features["sentiment_score"],
         has_promo_keywords=all_features["has_promo_keywords"],
+        semantic_promo_score=semantic_score,
         user_review_count_last_30d=all_features["user_review_count_last_30d"],
-        same_ip_review_count_last_7d=all_features["same_ip_review_count_last_7d"]
+        same_ip_review_count_last_7d=all_features["same_ip_review_count_last_7d"],
+        rating_deviation_from_avg=all_features.get("rating_deviation_from_avg", 0.0),
+        is_extreme_rater=all_features.get("is_extreme_rater", False)
     )
     db.add(db_features)
     
     # 3. Inference
-    trust_score, is_suspicious, reasons = model_service.predict(all_features, text=review.text)
+    trust_score, is_suspicious, reasons, rule_score, model_score = model_service.predict(all_features, text=review.text)
     
     # 4. Save Score
     db_score = ReviewScore(
@@ -76,7 +95,9 @@ def score_review(review: ReviewCreate, db: Session = Depends(get_session)):
         trust_score=trust_score,
         is_suspicious=is_suspicious,
         reasons=reasons,
-        sentiment_score=all_features["sentiment_score"]
+        sentiment_score=all_features["sentiment_score"],
+        rule_score=rule_score,
+        model_score=model_score
     )
 
 from fastapi import File, UploadFile
@@ -105,11 +126,17 @@ async def batch_score_reviews(file: UploadFile = File(...), db: Session = Depend
             
         # 1. Extract Features
         text_features = extract_text_features(text)
-        user_features = get_user_stats(user_id, db)
-        all_features = {**text_features, **user_features}
+        user_features = get_user_stats(user_id, db, rating)
+        from features.semantic_features import calculate_semantic_promo_score
+        semantic_score = calculate_semantic_promo_score(text)
+        all_features = {
+            **text_features, 
+            **user_features, 
+            "semantic_promo_score": semantic_score
+        }
         
         # 2. Inference
-        trust_score, is_suspicious, reasons = model_service.predict(all_features, text=text)
+        trust_score, is_suspicious, reasons, rule_score, model_score = model_service.predict(all_features, text=text)
         
         # 3. Append to results (We don't save to DB for batch to avoid cluttering, or we could)
         results.append(ReviewResponse(
@@ -117,7 +144,9 @@ async def batch_score_reviews(file: UploadFile = File(...), db: Session = Depend
             is_suspicious=is_suspicious,
             reasons=reasons,
             sentiment_score=all_features["sentiment_score"],
-            text=text
+            text=text,
+            rule_score=rule_score,
+            model_score=model_score
         ))
 
     return results
@@ -152,6 +181,8 @@ class PlaceReviewResult(BaseModel):
     sentiment_score: float
     author: str = ""
     date: str = ""
+    rule_score: Optional[float] = None
+    model_score: Optional[float] = None
 
 
 class PlaceSummary(BaseModel):
@@ -219,9 +250,15 @@ def analyze_place(req: PlaceAnalyzeRequest, db: Session = Depends(get_session)):
         if not text:
             continue
         text_feats = extract_text_features(text)
-        user_feats = get_user_stats("anonymous", db)
-        all_features = {**text_feats, **user_feats}
-        trust_score, is_suspicious, reasons = model_service.predict(all_features, text=text)
+        user_feats = get_user_stats("anonymous", db, rv.get("rating"))
+        from features.semantic_features import calculate_semantic_promo_score
+        semantic_score = calculate_semantic_promo_score(text)
+        all_features = {
+            **text_feats, 
+            **user_feats, 
+            "semantic_promo_score": semantic_score
+        }
+        trust_score, is_suspicious, reasons, rule_score, model_score = model_service.predict(all_features, text=text)
         analyzed.append(
             PlaceReviewResult(
                 text=text,
@@ -232,6 +269,8 @@ def analyze_place(req: PlaceAnalyzeRequest, db: Session = Depends(get_session)):
                 sentiment_score=all_features["sentiment_score"],
                 author=rv.get("author", ""),
                 date=rv.get("date", ""),
+                rule_score=rule_score,
+                model_score=model_score
             )
         )
 
@@ -271,3 +310,38 @@ def analyze_place(req: PlaceAnalyzeRequest, db: Session = Depends(get_session)):
         ),
         reviews=analyzed,
     )
+
+# --- Labeling API ---
+
+class LabelingTaskResponse(BaseModel):
+    id: int
+    project_type: str
+    source_id: str
+    content_json: dict
+    pre_label: Optional[str] = None
+    pre_confidence: Optional[float] = None
+    
+class LabelSubmitRequest(BaseModel):
+    human_label: str  # e.g., 'real', 'suspicious'
+    status: str = "labeled"
+
+@router.get("/api/labeling/pending", response_model=List[LabelingTaskResponse])
+def get_pending_tasks(limit: int = 10, db: Session = Depends(get_session)):
+    from sqlmodel import select
+    stmt = select(LabelingTask).where(LabelingTask.status == "pending").limit(limit)
+    tasks = db.exec(stmt).all()
+    return tasks
+
+@router.post("/api/labeling/{task_id}/submit")
+def submit_label(task_id: int, req: LabelSubmitRequest, db: Session = Depends(get_session)):
+    task = db.get(LabelingTask, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+        
+    task.human_label = req.human_label
+    task.status = req.status
+    task.labeled_at = datetime.utcnow()
+    
+    db.add(task)
+    db.commit()
+    return {"status": "success"}

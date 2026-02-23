@@ -1,14 +1,14 @@
 # Review Trust Analyzer
 
 ## Overview
-A system to analyze review credibility and detect potential fake reviews using a hybrid approach (Rule-based + ML + NLP).
+A system to analyze Google Maps review credibility and detect fake reviews using a hybrid approach (Rule-based + ML + NLP + Local LLM Judge).
 
 ## Features
-- **Real-time Analysis**: Instant trust score calculation
-- **ML-Powered Detection**: Logistic Regression + Semantic Similarity
-- **Place Analysis**: Analyze Google Maps reviews via SerpAPI
+- **Place Analysis**: Analyze Google Maps reviews via SerpAPI — core workflow
+- **Hybrid Scoring**: Rules + ML model, with Qwen3-14B as LLM judge for borderline cases (30–70% trust score)
+- **Labeling Pipeline**: Web UI + Discord interactive buttons for semi-automated dataset curation
+- **Remote Control**: OpenClaw integration — trigger analyses, run tests, monitor system via Discord
 - **Interactive UI**: Dark mode glassmorphism interface
-- **Multilingual**: English + Chinese (Traditional/Simplified)
 
 ## Tech Stack
 - **Backend**: Python 3.10+ / FastAPI
@@ -16,6 +16,8 @@ A system to analyze review credibility and detect potential fake reviews using a
 - **Frontend**: HTML5, CSS3, Vanilla JavaScript
 - **Database**: PostgreSQL / SQLite (dev)
 - **ML/NLP**: Scikit-learn, Sentence-Transformers
+- **LLM Judge**: Qwen3-14B via Ollama (WSL2, local GPU)
+- **Remote Control**: OpenClaw via Discord
 - **Containerization**: Docker + Docker Compose
 
 ## Quick Start
@@ -23,14 +25,21 @@ A system to analyze review credibility and detect potential fake reviews using a
 ### Prerequisites
 - Python 3.10+
 - [uv](https://docs.astral.sh/uv/) (recommended)
+- Ollama running in WSL2 with `qwen3:14b` pulled (for LLM judge)
 
 **Install uv:**
 ```bash
 # Windows (PowerShell)
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 
-# Mac/Linux
+# Mac/Linux / WSL2
 curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**Install Ollama (WSL2):**
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull qwen3:14b
 ```
 
 ### Setup & Run (3 commands)
@@ -47,9 +56,9 @@ uv run uvicorn app.main:app --reload
 ```
 
 **Access:**
-- Frontend: http://localhost:8000
+- Place Analysis: http://localhost:8000
 - API Docs: http://localhost:8000/docs
-- Place Analysis: http://localhost:8000/places
+- Labeling Queue: http://localhost:8000/admin/labeling
 
 ### Docker Alternative
 
@@ -57,7 +66,7 @@ uv run uvicorn app.main:app --reload
 docker-compose up --build
 ```
 
-## Available Skills (AI-Assisted Development)
+## Available Scripts
 
 This project uses [Superpowers](https://github.com/anthropics/superpowers) for workflow automation:
 
@@ -67,7 +76,6 @@ This project uses [Superpowers](https://github.com/anthropics/superpowers) for w
 | `/run-tests` | Run test suite with coverage |
 | `/train-model` | Train the ML model |
 | `/evaluate-model` | Evaluate model performance |
-| `/batch-analyze` | Process CSV files with reviews |
 | `/docker-dev` | Docker development environment |
 
 ## Testing
@@ -85,29 +93,40 @@ uv run pytest tests/test_api.py -v
 
 ## API Usage
 
-**POST /reviews/score**
-```json
-{
-  "text": "Best hotel ever! Free gift!",
-  "rating": 5,
-  "platform": "google",
-  "user_id": "user_001"
-}
-```
-
-**Response:**
-```json
-{
-  "trust_score": 0.12,
-  "is_suspicious": true,
-  "reasons": ["Contains promotional keywords."]
-}
-```
-
 **POST /places/analyze**
 ```json
+{ "query": "店名或 Google Maps URL" }
+```
+
+**Response** (borderline reviews include LLM judgment):
+```json
 {
-  "query": "店名或 Google Maps URL"
+  "place": { "name": "...", "rating": 4.2, "total_reviews": 312 },
+  "summary": {
+    "overall_trust_score": 0.61,
+    "suspicious_count": 4,
+    "total_analyzed": 20
+  },
+  "reviews": [
+    {
+      "text": "...",
+      "trust_score": 0.52,
+      "is_suspicious": false,
+      "llm_verdict": "fake",
+      "llm_reasoning": "用詞模板化，缺乏具體消費細節..."
+    }
+  ]
+}
+```
+
+**GET /api/status**
+```json
+{
+  "server": "ok",
+  "ollama": "ok",
+  "ollama_model": "qwen3:14b",
+  "labeling_pending": 12,
+  "serpapi_credits": 85
 }
 ```
 
@@ -120,8 +139,9 @@ review-trust-analyzer/
 │   ├── core/               # Configuration
 │   ├── services/           # Business logic
 │   └── static/             # Frontend
-├── features/               # Feature engineering
-├── ml/                     # ML training & evaluation
+├── features/               # Feature engineering scripts
+├── ml/                     # ML training (train_pipeline.py)
+├── scripts/                # Utility scripts (batch crawling, feature generation, pre-labeling)
 ├── tests/                  # Test suite
 ├── docs/                   # Documentation
 │   └── plans/              # Implementation plans
@@ -138,7 +158,9 @@ review-trust-analyzer/
 Create `.env` file:
 ```bash
 DATABASE_URL=sqlite:///./dev.db
-SERPAPI_KEY=your_serpapi_key_here  # For Place Analysis
+SERPAPI_KEY=your_serpapi_key_here
+OLLAMA_URL=http://host.docker.internal:11434  # Docker
+# OLLAMA_URL=http://localhost:11434           # Local dev
 ```
 
 ## uv vs pip Commands
@@ -155,3 +177,4 @@ SERPAPI_KEY=your_serpapi_key_here  # For Place Analysis
 
 ## License
 MIT
+

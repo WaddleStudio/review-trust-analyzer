@@ -24,3 +24,7 @@ async def read_root():
 @app.get("/places")
 async def read_places():
     return FileResponse('app/static/places.html')
+
+@app.get("/admin/labeling")
+async def read_labeling():
+    return FileResponse('app/static/labeling.html')

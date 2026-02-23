@@ -33,6 +33,7 @@ dependencies = [
     "aiofiles",
     "textblob",
     "sentence-transformers",
+    "tenacity>=9.1.4",
 ]
 
 [project.optional-dependencies]

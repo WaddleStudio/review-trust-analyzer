@@ -10,7 +10,7 @@
 
 ---
 
-## 1. 系統架構升級
+## 1. 系統架構升級 (進行中)
 
 ### 1.1 檢測流程 (Hybrid + LLM 裁判)
 
@@ -109,7 +109,7 @@ param_grid = {
 | `VERSION_COMPARISON.md` | 內容過時 |
 | `review_trust_analyzer.egg-info/` | 建置產物 |
 
-### 3.2 .gitignore 更新
+### 3.2 .gitignore 更新 (已完成)
 
 ```gitignore
 # Build artifacts
@@ -150,7 +150,7 @@ review-trust-analyzer/
 
 ---
 
-## 4. Skill 更新
+## 4. Skill 更新 (已完成)
 
 ### 4.1 所有 Skill 統一使用 uv 指令
 
@@ -219,7 +219,7 @@ curl -X POST http://localhost:8001/places/analyze \
 
 ## 5. Docker 改善
 
-### 5.1 修正 Hot Reload (Windows)
+### 5.1 修正 Hot Reload (Windows) (已完成)
 
 **docker-compose.yml 更新：**
 
@@ -350,16 +350,16 @@ cloudflared tunnel run review-trust-analyzer
 
 ## 7. 實作優先順序
 
-| 優先級 | 項目 | 預估工作量 |
-|--------|------|-----------|
-| P0 | 專案清理 + .gitignore | 30 分鐘 |
-| P0 | Skills 更新為 uv 風格 | 1 小時 |
-| P0 | Docker hot reload 修正 | 30 分鐘 |
-| P1 | 閾值優化（資料收集 + Grid Search） | 2-3 小時 |
-| P1 | 減少 False Positive/Negative（已有計畫） | 2 小時 |
-| P2 | Ollama + Qwen2.5 整合 | 2-3 小時 |
-| P2 | Cloudflare Tunnel 部署 | 1 小時 |
-| P3 | LLM 裁判邏輯整合 | 2-3 小時 |
+| 優先級 | 項目 | 預估工作量 | 狀態 |
+|--------|------|-----------|------|
+| P0 | 專案清理 + .gitignore | 30 分鐘 | ✅ 已完成 |
+| P0 | Skills 更新為 uv 風格 | 1 小時 | ✅ 已完成 |
+| P0 | Docker hot reload 修正 | 30 分鐘 | ✅ 已完成 |
+| P1 | 閾值優化（資料收集 + Grid Search） | 2-3 小時 | 🔄 待辦 |
+| P1 | 減少 False Positive/Negative（已有計畫） | 2 小時 | 🔄 待辦 |
+| P2 | Ollama + Qwen2.5 整合 | 2-3 小時 | 🔄 待辦 |
+| P2 | Cloudflare Tunnel 部署 | 1 小時 | 🔄 待辦 |
+| P3 | LLM 裁判邏輯整合 | 2-3 小時 | 🔄 待辦 |
 
 ---
 

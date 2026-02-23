@@ -21,6 +21,43 @@ def get_serpapi_usage():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/api/status")
+def get_status(db: Session = Depends(get_session)):
+    import httpx as _httpx
+    from app.core.config import settings as _settings
+    from app.models import LabelingTask
+    from sqlmodel import select
+
+    # Check Ollama
+    ollama_status = "unavailable"
+    try:
+        resp = _httpx.get(f"{_settings.OLLAMA_URL}/api/tags", timeout=3.0)
+        if resp.status_code == 200:
+            ollama_status = "ok"
+    except Exception:
+        pass
+
+    # Pending labeling tasks
+    stmt = select(LabelingTask).where(LabelingTask.status == "pending")
+    pending_count = len(db.exec(stmt).all())
+
+    # SerpAPI credits
+    serpapi_credits = None
+    try:
+        svc = SerpAPIService()
+        info = svc.get_account_info()
+        serpapi_credits = info.get("plan_searches_left") or info.get("searches_per_month")
+    except Exception:
+        pass
+
+    return {
+        "server": "ok",
+        "ollama": ollama_status,
+        "ollama_model": "qwen3:14b",
+        "labeling_pending": pending_count,
+        "serpapi_credits": serpapi_credits,
+    }
+
 # --- Place Analysis ---
 
 class PlaceSearchResult(BaseModel):

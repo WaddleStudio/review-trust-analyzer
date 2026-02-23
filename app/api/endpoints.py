@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session
+from sqlmodel import Session, select
 from pydantic import BaseModel
 from datetime import datetime
 from typing import List, Optional
 
+import httpx
+
+from app.core.config import settings
 from app.database import get_session
 from app.models import LabelingTask
 from features.text_features import extract_text_features
@@ -23,15 +26,10 @@ def get_serpapi_usage():
 
 @router.get("/api/status")
 def get_status(db: Session = Depends(get_session)):
-    import httpx as _httpx
-    from app.core.config import settings as _settings
-    from app.models import LabelingTask
-    from sqlmodel import select
-
     # Check Ollama
     ollama_status = "unavailable"
     try:
-        resp = _httpx.get(f"{_settings.OLLAMA_URL}/api/tags", timeout=3.0)
+        resp = httpx.get(f"{settings.OLLAMA_URL}/api/tags", timeout=3.0)
         if resp.status_code == 200:
             ollama_status = "ok"
     except Exception:

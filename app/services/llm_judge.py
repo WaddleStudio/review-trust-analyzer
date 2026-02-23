@@ -1,4 +1,5 @@
 import json
+import re
 import httpx
 from app.core.config import settings
 
@@ -30,10 +31,13 @@ class LLMJudgeService:
         try:
             response = httpx.post(
                 f"{self.base_url}/api/generate",
-                json={"model": self.model, "prompt": prompt, "stream": False},
+                json={"model": self.model, "prompt": prompt, "stream": False, "think": False},
                 timeout=30.0,
             )
+            response.raise_for_status()
             raw = response.json().get("response", "")
+            # Strip Qwen3 <think>...</think> blocks if thinking mode was not disabled
+            raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
             parsed = json.loads(raw)
             if "verdict" in parsed and "reasoning" in parsed:
                 return parsed

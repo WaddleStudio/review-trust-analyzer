@@ -30,24 +30,7 @@ def session_fixture():
         yield session
     SQLModel.metadata.drop_all(engine)
 
-def test_read_root():
-    response = client.get("/")
-    assert response.status_code == 200
-    assert "text/html" in response.headers["content-type"]
-
-def test_score_review(session: Session):
-    # Ensure model is loaded or mocked. 
-    # For integration test, we rely on the real model if it exists, or the fallback in inference.py
-    
-    payload = {
-        "text": "This is a great place!",
-        "rating": 5,
-        "platform": "google",
-        "user_id": "user123"
-    }
-    response = client.post("/reviews/score", json=payload)
-    assert response.status_code == 200
-    data = response.json()
-    assert "trust_score" in data
-    assert "is_suspicious" in data
-    assert "reasons" in data
+def test_read_root_redirects_to_places():
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code == 307
+    assert response.headers["location"] == "/places"

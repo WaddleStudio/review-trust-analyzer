@@ -449,6 +449,28 @@
             line-height: 1.4;
         }
 
+        /* ── LLM Judge ───────────────────────────── */
+        .llm-verdict {
+            margin-top: 0.625rem;
+            padding: 0.5rem 0.75rem;
+            background: rgba(59,130,246,0.06);
+            border: 1px solid rgba(59,130,246,0.15);
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+        .llm-verdict-label {
+            font-weight: 600;
+            margin-right: 0.25rem;
+        }
+        .llm-verdict-label.fake  { color: var(--danger); }
+        .llm-verdict-label.real  { color: var(--success); }
+        .llm-reasoning {
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+            font-size: 0.78rem;
+        }
+
         /* ── Place Header ────────────────────────── */
         .place-header {
             display: flex;
@@ -950,6 +972,11 @@
                     <span class="trust-value ${tc}">${pct}%</span>
                 </div>
                 ${r.reasons.length ? '<div class="review-reasons">' + r.reasons.map(reason => '<span>' + escapeHtml(reason) + '</span>').join('') + '</div>' : ''}
+                ${r.llm_verdict ? `
+                <div class="llm-verdict">
+                    <span class="llm-verdict-label ${r.llm_verdict}">🤖 LLM 裁判: ${r.llm_verdict === 'fake' ? '可疑' : '真實'}</span>
+                    ${r.llm_reasoning ? '<div class="llm-reasoning">' + escapeHtml(r.llm_reasoning) + '</div>' : ''}
+                </div>` : ''}
             `;
             listEl.appendChild(card);
         });

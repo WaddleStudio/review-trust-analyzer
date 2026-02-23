@@ -52,6 +52,8 @@ class PlaceReviewResult(BaseModel):
     date: str = ""
     rule_score: Optional[float] = None
     model_score: Optional[float] = None
+    llm_verdict: Optional[str] = None
+    llm_reasoning: Optional[str] = None
 
 
 class PlaceSummary(BaseModel):
@@ -127,7 +129,8 @@ def analyze_place(req: PlaceAnalyzeRequest, db: Session = Depends(get_session)):
             **user_feats, 
             "semantic_promo_score": semantic_score
         }
-        trust_score, is_suspicious, reasons, rule_score, model_score = model_service.predict(all_features, text=text)
+        trust_score, is_suspicious, reasons, rule_score, model_score, llm_verdict, llm_reasoning = \
+            model_service.predict(all_features, text=text)
         analyzed.append(
             PlaceReviewResult(
                 text=text,
@@ -139,7 +142,9 @@ def analyze_place(req: PlaceAnalyzeRequest, db: Session = Depends(get_session)):
                 author=rv.get("author", ""),
                 date=rv.get("date", ""),
                 rule_score=rule_score,
-                model_score=model_score
+                model_score=model_score,
+                llm_verdict=llm_verdict,
+                llm_reasoning=llm_reasoning
             )
         )
 

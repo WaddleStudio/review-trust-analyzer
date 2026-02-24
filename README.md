@@ -6,6 +6,7 @@ A system to analyze Google Maps review credibility and detect fake reviews using
 ## Features
 - **Place Analysis**: Analyze Google Maps reviews via SerpAPI — core workflow
 - **Hybrid Scoring**: Rules + ML model, with Qwen3-14B as LLM judge for borderline cases (30–70% trust score)
+- **Auto-Queue**: Borderline reviews judged by LLM are automatically added to labeling queue (`pre_label` = LLM verdict)
 - **Labeling Pipeline**: Web UI + Discord interactive buttons for semi-automated dataset curation
 - **Remote Control**: OpenClaw integration — trigger analyses, run tests, monitor system via Discord
 - **Interactive UI**: Dark mode glassmorphism interface
@@ -129,6 +130,8 @@ uv run pytest tests/test_api.py -v
   "serpapi_credits": 85
 }
 ```
+
+`labeling_pending` reflects reviews auto-queued from borderline LLM judgments awaiting human confirmation at `/admin/labeling`.
 
 ## Project Structure
 

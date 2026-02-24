@@ -166,6 +166,20 @@ def analyze_place(req: PlaceAnalyzeRequest, db: Session = Depends(get_session)):
         }
         trust_score, is_suspicious, reasons, rule_score, model_score, llm_verdict, llm_reasoning = \
             model_service.predict(all_features, text=text)
+
+        if llm_verdict is not None:
+            author = rv.get("author", "")
+            date = rv.get("date", "")
+            db.add(LabelingTask(
+                project_type="review_trust",
+                source_id=f"{place_info.get('name', 'unknown')}:{author}:{date}",
+                content_json={"text": text, "rating": rv.get("rating"), "author": author, "date": date},
+                pre_label=llm_verdict,
+                pre_confidence=round(trust_score, 4),
+                status="pending",
+            ))
+            db.commit()
+
         analyzed.append(
             PlaceReviewResult(
                 text=text,

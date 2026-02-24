@@ -2,11 +2,28 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Remove Single Review + Batch Upload, redirect `/` to Place Analysis, integrate Qwen3-14B as an LLM judge for borderline cases (30–70% trust score), and add `/api/status` for OpenClaw monitoring.
+**Goal:** Remove Single Review + Batch Upload, redirect `/` to Place Analysis, integrate Qwen3-14B as an LLM judge for borderline cases (30–70% trust score), add `/api/status` for OpenClaw monitoring, and auto-queue borderline reviews into labeling pipeline.
 
-**Architecture:** Hybrid scoring (Rules + ML) handles clear cases; Qwen3-14B via Ollama (WSL2 native) judges only borderline cases. `llm_judge.py` wraps the Ollama HTTP call and is mocked in tests. `inference.py` is extended to return two extra fields: `llm_verdict` and `llm_reasoning`.
+**Architecture:** Hybrid scoring (Rules + ML) handles clear cases; Qwen3-14B via Ollama (WSL2 native) judges only borderline cases. `llm_judge.py` wraps the Ollama HTTP call and is mocked in tests. `inference.py` is extended to return two extra fields: `llm_verdict` and `llm_reasoning`. Borderline reviews with an LLM verdict are automatically written to `LabelingTask` for human review.
 
 **Tech Stack:** FastAPI, SQLModel, Pydantic, httpx (Ollama calls), pytest, uv
+
+## Status
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 1 | Remove dead frontend files | ✅ Done |
+| 2 | Update app/main.py — redirect root to /places | ✅ Done |
+| 3 | Remove dead API endpoints and Pydantic models | ✅ Done |
+| 4 | Remove batch-analyze skill | ✅ Done |
+| 5 | Fix tests broken by removals | ✅ Done |
+| 6 | Add OLLAMA_URL to config and docker-compose | ✅ Done |
+| 7 | Create llm_judge.py with tests | ✅ Done |
+| 8 | Extend inference.py to call LLM judge for borderline cases | ✅ Done |
+| 9 | Extend API schema and wire up llm fields | ✅ Done |
+| 10 | Update places.html to display LLM verdict | ✅ Done |
+| 11 | Add /api/status endpoint | ✅ Done |
+| 12 | Auto-queue borderline reviews into LabelingTask | ✅ Done |
 
 ---
 
@@ -921,6 +938,56 @@ Expected: all passing.
 ```bash
 git add app/api/endpoints.py tests/test_status.py
 git commit -m "feat: add /api/status endpoint for OpenClaw health monitoring"
+```
+
+---
+
+## Task 12: Auto-queue borderline reviews into LabelingTask
+
+**Files:**
+- Modify: `app/api/endpoints.py`
+- Create: `tests/test_autoqueue.py`
+
+**Goal:** When `analyze_place` processes a borderline review (0.30–0.70) and the LLM judge returns a verdict, automatically write a `LabelingTask` row for human review. `pre_label` stores the LLM verdict; `pre_confidence` stores the trust score.
+
+**Step 1: Write failing tests**
+
+Create `tests/test_autoqueue.py` with 3 tests:
+- `test_borderline_review_queued_with_llm_verdict` — expects 1 LabelingTask in DB
+- `test_clear_review_not_queued` — trust_score=0.95, expects 0 rows
+- `test_borderline_no_llm_verdict_not_queued` — Ollama down, expects 0 rows
+
+**Step 2: Implement in analyze_place**
+
+After the `model_service.predict()` call, add:
+
+```python
+if llm_verdict is not None:
+    author = rv.get("author", "")
+    date = rv.get("date", "")
+    db.add(LabelingTask(
+        project_type="review_trust",
+        source_id=f"{place_info.get('name', 'unknown')}:{author}:{date}",
+        content_json={"text": text, "rating": rv.get("rating"), "author": author, "date": date},
+        pre_label=llm_verdict,
+        pre_confidence=round(trust_score, 4),
+        status="pending",
+    ))
+    db.commit()
+```
+
+**Step 3: Run tests**
+
+```bash
+python -m pytest tests/test_autoqueue.py -v
+```
+Expected: 3 PASSED
+
+**Step 4: Commit**
+
+```bash
+git add app/api/endpoints.py tests/test_autoqueue.py
+git commit -m "feat: auto-queue borderline reviews with LLM verdict into LabelingTask"
 ```
 
 ---

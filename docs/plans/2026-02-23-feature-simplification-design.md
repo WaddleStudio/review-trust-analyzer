@@ -54,15 +54,22 @@ async def read_labeling():
 ```
 Hybrid 初篩 (Rules + ML)
     │
-    ├── trust_score > 0.70 → 直接通過 ✅  (llm_verdict = None)
-    ├── trust_score < 0.30 → 直接標記 ❌  (llm_verdict = None)
+    ├── trust_score > 0.70 → 直接通過 ✅  (llm_verdict = None, 不入佇列)
+    ├── trust_score < 0.30 → 直接標記 ❌  (llm_verdict = None, 不入佇列)
     └── 0.30 ~ 0.70 → 呼叫 Qwen3-14B 裁判
                           │
-                          └── llm_verdict: "real" | "fake"
-                              llm_reasoning: 中文推理說明
+                          ├── llm_verdict: "real" | "fake"
+                          │   llm_reasoning: 中文推理說明
+                          │
+                          └── 自動寫入 LabelingTask ← NEW
+                                  pre_label = llm_verdict
+                                  pre_confidence = trust_score
+                                  status = "pending"
+                                  → /admin/labeling 等人工確認
+                                  → (未來) OpenClaw Discord 按鈕推送
 ```
 
-設計決策：90% 案例由 Hybrid 秒判（免費、快速），僅邊界案例送 LLM（準確、可控）。
+設計決策：90% 案例由 Hybrid 秒判（免費、快速），僅邊界案例送 LLM（準確、可控）。LLM 判斷結果自動入佇列，形成人機協作標記回路。
 
 ### 2.2 新增 `app/services/llm_judge.py`
 

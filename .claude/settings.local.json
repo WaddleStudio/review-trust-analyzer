@@ -14,7 +14,9 @@
       "Bash(powershell -ExecutionPolicy ByPass -c \"irm https://astral.sh/uv/install.ps1 | iex\")",
       "Bash(export PATH=\"$PATH:/c/Users/1ren/.local/bin\")",
       "Bash(uv run python:*)",
-      "Bash(git push origin feature/nlp-sentiment)"
+      "Bash(git push origin feature/nlp-sentiment)",
+      "Bash(cd /d/Projects/review-trust-analyzer && uv run pytest tests/test_api.py -v 2>&1)",
+      "Bash(uv run:*)"
     ]
   }
 }

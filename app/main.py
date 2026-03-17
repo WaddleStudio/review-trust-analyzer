@@ -9,7 +9,7 @@ async def lifespan(app: FastAPI):
     yield
 
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 app = FastAPI(title="Review Trust Analyzer", lifespan=lifespan)
 
@@ -19,8 +19,12 @@ app.include_router(endpoints.router)
 
 @app.get("/")
 async def read_root():
-    return FileResponse('app/static/index.html')
+    return RedirectResponse(url="/places")
 
 @app.get("/places")
 async def read_places():
     return FileResponse('app/static/places.html')
+
+@app.get("/admin/labeling")
+async def read_labeling():
+    return FileResponse('app/static/labeling.html')

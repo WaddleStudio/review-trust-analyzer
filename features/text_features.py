@@ -1,5 +1,5 @@
 import re
-
+from textblob import TextBlob
 # Expanded keywords based on NLP analysis (WordNet) + Manual curation
 PROMO_KEYWORDS = [
     # English
@@ -31,7 +31,6 @@ def extract_text_features(text: str) -> dict:
     has_promo = any(keyword in text_lower for keyword in PROMO_KEYWORDS)
     
     # Sentiment Score using TextBlob
-    from textblob import TextBlob
     blob = TextBlob(text)
     sentiment_score = blob.sentiment.polarity
         

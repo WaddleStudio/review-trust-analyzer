@@ -1,7 +1,10 @@
 import re
 from urllib.parse import unquote
 
+import time
+
 import requests
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from app.core.config import settings
 
@@ -28,6 +31,18 @@ class SerpAPIService:
             return unquote(match.group(1).replace("+", " "))
         return None
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((requests.exceptions.RequestException, requests.exceptions.Timeout)),
+    )
+    def _get_with_retry(self, params: dict) -> dict:
+        """Internal method to execute request with retry."""
+        resp = requests.get(SERPAPI_BASE, params=params, timeout=30)
+        resp.raise_for_status()
+        time.sleep(0.5)  # basic rate limiting
+        return resp.json()
+
     def search_places(self, query: str) -> list[dict]:
         """Search Google Maps for places matching the query."""
         params = {
@@ -36,9 +51,7 @@ class SerpAPIService:
             "type": "search",
             "api_key": self.api_key,
         }
-        resp = requests.get(SERPAPI_BASE, params=params, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
+        data = self._get_with_retry(params)
 
         results = []
         for item in data.get("local_results", []):
@@ -72,9 +85,7 @@ class SerpAPIService:
         reviews = []
 
         while len(reviews) < num:
-            resp = requests.get(SERPAPI_BASE, params=params, timeout=30)
-            resp.raise_for_status()
-            data = resp.json()
+            data = self._get_with_retry(params)
 
             if not place_info:
                 pi = data.get("place_info", {})
@@ -106,6 +117,7 @@ class SerpAPIService:
             # Check for next page
             pagination = data.get("serpapi_pagination", {})
             next_token = pagination.get("next_page_token")
+
             if not next_token or len(reviews) >= num:
                 break
 
@@ -113,3 +125,13 @@ class SerpAPIService:
             params["num"] = num - len(reviews)
 
         return place_info, reviews[:num]
+
+    def get_account_info(self) -> dict:
+        """Fetch SerpAPI account usage information."""
+        params = {
+            "api_key": self.api_key
+        }
+        import requests
+        resp = requests.get("https://serpapi.com/account", params=params, timeout=10)
+        resp.raise_for_status()
+        return resp.json()
